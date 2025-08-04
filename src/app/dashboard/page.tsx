@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FORM_CONFIGS } from '@/lib/form-configs'
+import { createDynamicExcelExport } from '@/lib/excel-utils'
 import * as XLSX from 'xlsx'
 import Image from 'next/image'
 
@@ -160,8 +161,8 @@ export default function DashboardPage() {
     }
 
     try {
-      // Import the dynamic export function
-      const { createDynamicExcelExport } = await import('@/lib/excel-utils')
+      console.log('🔍 DEBUG: User object in exportMyReports:', user);
+      console.log('🔍 DEBUG: User name:', user?.name);
       
       // Prepare reports data for export
       const reportsData = historyReports.map(report => ({
@@ -175,6 +176,10 @@ export default function DashboardPage() {
           role: user?.role || 'UNKNOWN'
         }
       }))
+
+      console.log('🔍 DEBUG: Reports data prepared:', reportsData);
+      console.log('🔍 DEBUG: First report sample:', JSON.stringify(reportsData[0], null, 2));
+      console.log('🔍 DEBUG: History reports raw:', historyReports.slice(0, 2));
 
       // Use the new dynamic export function with Islamic Corporate theme
       const excelResult = createDynamicExcelExport({

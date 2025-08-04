@@ -10,7 +10,19 @@ const nextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: false,
-  }
+  },
+  webpack: (config, { isServer }) => {
+    // Fix for XLSX library
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
+  },
 }
 
 module.exports = nextConfig

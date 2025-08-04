@@ -264,6 +264,18 @@ export const createDynamicExcelExport = (options: ExcelExportOptions) => {
   console.log('🎯 Creating Excel with NEW MODERN FORMAT - Colors updated!')
   console.log('🎨 Using modern colors:', KSU_COLORS)
   
+  console.log('📊 EXCEL UTILS DEBUG: Config received:', {
+    title,
+    subtitle,
+    dataLength: data?.length,
+    sheetName,
+    filename,
+    userInfo
+  });
+  
+  console.log('📊 EXCEL UTILS DEBUG: First data item:', data?.[0]);
+  console.log('📊 EXCEL UTILS DEBUG: First data reportData:', data?.[0]?.reportData);
+  
   if (!data || data.length === 0) {
     throw new Error('Tidak ada data untuk diekspor')
   }
@@ -291,12 +303,11 @@ export const createDynamicExcelExport = (options: ExcelExportOptions) => {
     XLSX.utils.book_append_sheet(wb, ws, sheetName)
   }
 
-  // Generate Excel buffer
+  // Generate Excel buffer - SIMPLE APPROACH WITHOUT COMPLEX STYLING
   const excelBuffer = XLSX.write(wb, { 
     bookType: 'xlsx', 
     type: 'array',
-    cellStyles: true,
-    sheetStubs: false
+    cellStyles: false  // Disable complex styling
   })
 
   return {
@@ -308,14 +319,18 @@ export const createDynamicExcelExport = (options: ExcelExportOptions) => {
 
 // Fungsi untuk membuat sheet per user dengan analytics dan logo
 const createAdvancedUserSheet = (userName: string, reports: any[], title: string, userRole: string) => {
-  const ws: any = {}
+  console.log(`🔧 Creating sheet for ${userName} with ${reports.length} reports`)
+  console.log(`🔧 User role: ${userRole}`)
+  console.log(`🔧 First report sample:`, reports[0])
+  console.log(`🔧 First report reportData:`, reports[0]?.reportData)
   
-  // Get available fields for this user
+  // Get available fields for this user from form config
   let availableFields: string[] = []
   const formConfig = FORM_CONFIGS[userRole]
   
   if (formConfig) {
     availableFields = formConfig.fields.map(field => field.name)
+    console.log(`📋 Using form config for ${userRole}:`, availableFields)
   } else {
     // Fallback: collect all fields from reports
     const allFields = new Set<string>()
@@ -324,160 +339,130 @@ const createAdvancedUserSheet = (userName: string, reports: any[], title: string
       Object.keys(reportData).forEach(field => allFields.add(field))
     })
     availableFields = Array.from(allFields)
+    console.log(`📋 Using fallback fields:`, availableFields)
   }
 
-  // Detect numeric fields for analytics
-  const numericFields = getNumericFields(reports, availableFields)
+  // Prepare data for XLSX using simple approach
+  const data: any[][] = []
   
-  // === SECTION 1: LOGO & HEADER (Baris 1-2) ===
-  ws['A1'] = { v: '🕌 KOPERASI SERBA USAHA KIRAP ENTREPRENEURSHIP (KSU KE)', t: 's' }
-  applyCellStyle(ws, 'A1', getLogoAreaStyle())
+  // Header row 1: Title
+  data.push([`� LAPORAN AKTIVITAS HARIAN - ${userName.toUpperCase()}`])
+  data.push([`📅 Bulan: ${new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`])
+  data.push([]) // Empty row
   
-  ws['A2'] = { v: '📊 LAPORAN AKTIVITAS HARIAN MARKETING FUNDING 📊', t: 's' }
-  applyCellStyle(ws, 'A2', getLogoAreaStyle())
-  
-  // Merge logo area across all columns (A1 to last column)
-  const lastColIndex = Math.max(availableFields.length + 2, 8) // Minimum 8 columns
-  const lastColLetter = String.fromCharCode(65 + lastColIndex - 1)
-  mergeCells(ws, `A1:${lastColLetter}1`)
-  mergeCells(ws, `A2:${lastColLetter}2`)
-  
-  // === SECTION 2: USER INFO (Baris 4-5) ===
-  ws['B4'] = { v: `Nama : ${userName}`, t: 's' }
-  applyCellStyle(ws, 'B4', getInfoHeaderStyle())
-  
-  const currentDate = new Date()
-  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-  const currentMonth = monthNames[currentDate.getMonth()]
-  const currentYear = currentDate.getFullYear()
-  
-  ws['B5'] = { v: `Bulan : ${currentMonth} ${currentYear}`, t: 's' }
-  applyCellStyle(ws, 'B5', getInfoHeaderStyle())
-  
-  // === SECTION 3: ANALYTICS SUMMARY (Baris 4-7, kolom kanan) ===
-  if (numericFields.length > 0) {
-    const analyticsStartCol = lastColIndex - 3 // 3 columns for analytics
-    const analyticsCol1 = String.fromCharCode(65 + analyticsStartCol)
-    const analyticsCol2 = String.fromCharCode(65 + analyticsStartCol + 1)
-    const analyticsCol3 = String.fromCharCode(65 + analyticsStartCol + 2)
-    
-    // Analytics header
-    ws[`${analyticsCol1}4`] = { v: '📈 RINGKASAN ANALITIK', t: 's' }
-    applyCellStyle(ws, `${analyticsCol1}4`, getAnalyticsHeaderStyle())
-    mergeCells(ws, `${analyticsCol1}4:${analyticsCol3}4`)
-    
-    ws[`${analyticsCol1}5`] = { v: `Total Laporan: ${reports.length}`, t: 's' }
-    applyCellStyle(ws, `${analyticsCol1}5`, getDataCellStyle())
-    mergeCells(ws, `${analyticsCol1}5:${analyticsCol3}5`)
-    
-    ws[`${analyticsCol1}6`] = { v: `Rentang Tanggal: ${reports.length > 0 ? 
-      new Date(Math.min(...reports.map(r => new Date(r.date).getTime()))).toLocaleDateString('id-ID') : ''} - ${
-      new Date(Math.max(...reports.map(r => new Date(r.date).getTime()))).toLocaleDateString('id-ID')}`, t: 's' }
-    applyCellStyle(ws, `${analyticsCol1}6`, getDataCellStyle())
-    mergeCells(ws, `${analyticsCol1}6:${analyticsCol3}6`)
-  }
-  
-  // === SECTION 4: TABLE HEADERS (Baris 7) ===
-  const headers = ['No', 'Tanggal', ...availableFields.map(field => getFieldLabel(field, userRole))]
-  const headerCols = ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T']
-  
-  headers.forEach((header, index) => {
-    if (index < headerCols.length) {
-      const cellRef = `${headerCols[index]}7`
-      ws[cellRef] = { v: header, t: 's' }
-      applyCellStyle(ws, cellRef, getColumnHeaderStyle())
-    }
+  // Header row 2: Column headers
+  const headers = ['No', 'Tanggal', 'Waktu Input']
+  availableFields.forEach(fieldName => {
+    const fieldLabel = getFieldLabel(fieldName, userRole)
+    headers.push(fieldLabel)
   })
+  data.push(headers)
   
-  // === SECTION 5: DATA ROWS (Mulai baris 8) ===
+  // Data rows
   reports.forEach((report, index) => {
-    const rowNum = 8 + index
-    const isAlternate = index % 2 === 1
     const reportData = report.reportData || {}
     
-    // Nomor urut
-    ws[`B${rowNum}`] = { v: index + 1, t: 'n' }
-    applyCellStyle(ws, `B${rowNum}`, getDataCellStyle(isAlternate))
+    const row: any[] = []
     
-    // Tanggal
+    // No urut
+    row.push(index + 1)
+    
+    // Tanggal laporan
     const tanggal = report.date ? new Date(report.date).toLocaleDateString('id-ID') : ''
-    ws[`C${rowNum}`] = { v: tanggal, t: 's' }
-    applyCellStyle(ws, `C${rowNum}`, getDataCellStyle(isAlternate))
+    row.push(tanggal)
     
-    // Data fields
-    availableFields.forEach((fieldName, fieldIndex) => {
-      const colIndex = fieldIndex + 2 // Start from column D
-      if (colIndex < headerCols.length) {
-        const cellRef = `${headerCols[colIndex + 1]}${rowNum}` // +1 because D is index 3
-        const value = formatFieldValue(fieldName, reportData[fieldName])
-        ws[cellRef] = { v: value, t: 's' }
-        applyCellStyle(ws, cellRef, getDataCellStyle(isAlternate))
-      }
+    // Waktu input (real-time dari createdAt)
+    let waktuInput = ''
+    if (report.createdAt) {
+      const inputDate = new Date(report.createdAt)
+      waktuInput = inputDate.toLocaleString('id-ID', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: 'Asia/Jakarta'
+      })
+    }
+    row.push(waktuInput)
+    
+    // Data fields sesuai urutan form config
+    availableFields.forEach(fieldName => {
+      const value = formatFieldValue(fieldName, reportData[fieldName])
+      row.push(value)
+    })
+    
+    data.push(row)
+  })
+  
+  // Add summary if there are numeric fields
+  const numericFields = availableFields.filter(fieldName => {
+    return reports.some(report => {
+      const value = report.reportData?.[fieldName]
+      return value && !isNaN(parseFloat(value))
     })
   })
   
-  // === SECTION 6: ANALYTICS ROWS (Setelah data) ===
   if (numericFields.length > 0) {
-    const analyticsStartRow = 8 + reports.length + 2
+    data.push([]) // Empty row
     
     // Total row
-    ws[`B${analyticsStartRow}`] = { v: 'TOTAL', t: 's' }
-    applyCellStyle(ws, `B${analyticsStartRow}`, getTotalStyle())
-    ws[`C${analyticsStartRow}`] = { v: '', t: 's' }
-    applyCellStyle(ws, `C${analyticsStartRow}`, getTotalStyle())
-    
-    // Average row
-    ws[`B${analyticsStartRow + 1}`] = { v: 'RATA-RATA', t: 's' }
-    applyCellStyle(ws, `B${analyticsStartRow + 1}`, getAverageStyle())
-    ws[`C${analyticsStartRow + 1}`] = { v: '', t: 's' }
-    applyCellStyle(ws, `C${analyticsStartRow + 1}`, getAverageStyle())
-    
-    // Calculate analytics for each numeric field
-    availableFields.forEach((fieldName, fieldIndex) => {
-      const colIndex = fieldIndex + 2
-      if (colIndex < headerCols.length && numericFields.includes(fieldName)) {
-        const cellRef = `${headerCols[colIndex + 1]}`
-        const analytics = calculateAnalytics(reports, fieldName)
-        
-        // Total
-        ws[`${cellRef}${analyticsStartRow}`] = { v: analytics.total, t: 'n' }
-        applyCellStyle(ws, `${cellRef}${analyticsStartRow}`, getTotalStyle())
-        
-        // Average
-        ws[`${cellRef}${analyticsStartRow + 1}`] = { v: analytics.average.toFixed(2), t: 'n' }
-        applyCellStyle(ws, `${cellRef}${analyticsStartRow + 1}`, getAverageStyle())
-      } else if (colIndex < headerCols.length) {
-        // Non-numeric fields
-        const cellRef = `${headerCols[colIndex + 1]}`
-        ws[`${cellRef}${analyticsStartRow}`] = { v: '-', t: 's' }
-        applyCellStyle(ws, `${cellRef}${analyticsStartRow}`, getTotalStyle())
-        ws[`${cellRef}${analyticsStartRow + 1}`] = { v: '-', t: 's' }
-        applyCellStyle(ws, `${cellRef}${analyticsStartRow + 1}`, getAverageStyle())
+    const totalRow = ['', 'TOTAL', '']
+    availableFields.forEach(fieldName => {
+      if (numericFields.includes(fieldName)) {
+        const total = reports.reduce((sum, report) => {
+          const value = parseFloat(report.reportData?.[fieldName]) || 0
+          return sum + value
+        }, 0)
+        totalRow.push(total)
+      } else {
+        totalRow.push('')
       }
     })
+    data.push(totalRow)
+    
+    // Average row
+    const avgRow = ['', 'RATA-RATA', '']
+    availableFields.forEach(fieldName => {
+      if (numericFields.includes(fieldName)) {
+        const total = reports.reduce((sum, report) => {
+          const value = parseFloat(report.reportData?.[fieldName]) || 0
+          return sum + value
+        }, 0)
+        const average = reports.length > 0 ? total / reports.length : 0
+        avgRow.push((Math.round(average * 100) / 100).toString()) // Round to 2 decimal places
+      } else {
+        avgRow.push('')
+      }
+    })
+    data.push(avgRow)
   }
   
-  // === SECTION 8: COLUMN SETTINGS ===
-  const colCount = Math.min(headers.length + 2, headerCols.length)
-  ws['!cols'] = Array.from({ length: colCount }, (_, i) => {
-    if (i === 0) return { wch: 5 }   // A (kosong)
-    if (i === 1) return { wch: 8 }   // B (No)
-    if (i === 2) return { wch: 15 }  // C (Tanggal)
-    return { wch: 20 }  // Field columns
+  console.log(`📊 Sheet data prepared with ${data.length} rows`)
+  console.log(`🔍 Sample data:`, data[0], data[3]) // Title and headers
+  
+  // Create worksheet from array - SIMPLE APPROACH
+  const ws = XLSX.utils.aoa_to_sheet(data)
+  
+  // Set column widths
+  const colWidths = [
+    { wch: 5 },   // No
+    { wch: 12 },  // Tanggal
+    { wch: 20 },  // Waktu Input
+  ]
+  
+  // Add width for each field
+  availableFields.forEach(fieldName => {
+    const fieldLabel = getFieldLabel(fieldName, userRole)
+    const contentWidth = Math.max(fieldLabel.length, 15)
+    colWidths.push({ wch: contentWidth })
   })
   
-  // === SECTION 9: ROW SETTINGS ===
-  const totalRows = reports.length + 18
-  ws['!rows'] = Array.from({ length: totalRows }, (_, i) => {
-    if (i < 3) return { hpt: 25 }  // Logo area
-    if (i < 8) return { hpt: 20 }  // Header area
-    return { hpt: 18 }             // Data area
-  })
+  ws['!cols'] = colWidths
   
-  // === SECTION 10: RANGE SETTING ===
-  const lastRow = Math.max(8 + reports.length + 5, 18)
-  ws['!ref'] = `A1:${lastColLetter}${lastRow}`
+  console.log(`✅ Excel sheet created for ${userName} with ${reports.length} reports and ${availableFields.length} fields`)
+  console.log(`📊 Fields included:`, availableFields.map(field => getFieldLabel(field, userRole)))
   
   return ws
 }
