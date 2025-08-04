@@ -494,11 +494,19 @@ export default function DashboardPage() {
                               id={field.name}
                               name={field.name}
                               placeholder="Pilih atau ketik angka..."
-                              value={reportData[field.name] || ''}
-                              onChange={(e) => handleFieldChange(field.name, parseInt(e.target.value) || '')}
+                              value={reportData[field.name] !== undefined && reportData[field.name] !== null ? reportData[field.name] : ''}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                if (value === '') {
+                                  handleFieldChange(field.name, '')
+                                } else {
+                                  const numValue = parseInt(value)
+                                  handleFieldChange(field.name, isNaN(numValue) ? '' : numValue)
+                                }
+                              }}
                               list={`${field.name}-datalist`}
-                              min="1"
-                              max="999"
+                              min="0"
+                              max="30"
                               className="mt-1 block w-full px-3 py-2 pr-10 sm:pr-12 border border-gray-300 rounded-lg shadow-sm 
                                        focus:outline-none focus:ring-2 focus:ring-ksu-yellow focus:border-ksu-orange 
                                        hover:border-ksu-orange hover:shadow-md
@@ -508,8 +516,8 @@ export default function DashboardPage() {
                                        text-sm sm:text-base font-medium"
                             />
                             <datalist id={`${field.name}-datalist`}>
-                              {Array.from({length: 30}, (_, i) => (
-                                <option key={i + 1} value={i + 1} label={`${i + 1}`} />
+                              {Array.from({length: 31}, (_, i) => (
+                                <option key={i} value={i} label={`${i}`} />
                               ))}
                             </datalist>
                             
@@ -537,9 +545,9 @@ export default function DashboardPage() {
                               <svg className="w-3 h-3 group-hover:animate-pulse" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                               </svg>
-                              <span className="text-xs">Klik untuk pilihan 1-30</span>
+                              <span className="text-xs">Klik untuk pilihan 0-30</span>
                             </div>
-                            {reportData[field.name] && (
+                            {(reportData[field.name] !== undefined && reportData[field.name] !== null && reportData[field.name] !== '') && (
                               <div className="text-green-600 font-bold flex items-center space-x-1 animate-fadeIn">
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

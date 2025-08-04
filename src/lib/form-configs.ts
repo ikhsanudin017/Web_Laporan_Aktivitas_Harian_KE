@@ -41,13 +41,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         placeholder: '0'
       },
       {
-        name: 'kegiatan',
-        label: 'Kegiatan (*Selain yang ada pada tabel)',
-        type: 'textarea',
-        required: false,
-        placeholder: 'Masukkan kegiatan lainnya...'
-      },
-      {
         name: 'fundingB2B',
         label: 'Funding B2B',
         type: 'dropdown-number',
@@ -76,6 +69,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         type: 'textarea',
         required: false,
         placeholder: 'Keterangan tambahan...'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Aktivitas Lainnya (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan aktivitas lainnya...'
       }
     ]
   },
@@ -92,13 +92,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         placeholder: '0'
       },
       {
-        name: 'kegiatan',
-        label: 'Kegiatan (*Selain yang ada pada tabel)',
-        type: 'textarea',
-        required: false,
-        placeholder: 'Masukkan kegiatan lainnya...'
-      },
-      {
         name: 'survey',
         label: 'Survey',
         type: 'dropdown-number',
@@ -111,6 +104,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         type: 'textarea',
         required: false,
         placeholder: 'Keterangan tambahan...'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Aktivitas Lainnya (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan aktivitas lainnya...'
       }
     ]
   },
@@ -120,6 +120,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
     title: 'Form Laporan Harian - Bapak Arwan',
     fields: [
       {
+        name: 'angsuran',
+        label: 'Angsuran',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
         name: 'fundingB2B',
         label: 'Funding B2B',
         type: 'dropdown-number',
@@ -152,20 +159,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         category: 'Marketing'
       },
       {
-        name: 'kegiatan',
-        label: 'Kegiatan (*Selain yang ada pada tabel)',
-        type: 'textarea',
-        required: false,
-        placeholder: 'Masukkan kegiatan lainnya...'
-      },
-      {
-        name: 'angsuran',
-        label: 'Angsuran',
-        type: 'dropdown-number',
-        required: false,
-        placeholder: '0'
-      },
-      {
         name: 'survey',
         label: 'Survey',
         type: 'dropdown-number',
@@ -178,6 +171,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         type: 'textarea',
         required: false,
         placeholder: 'Keterangan tambahan...'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Aktivitas Lainnya (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan aktivitas lainnya...'
       }
     ]
   },
@@ -187,6 +187,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
     title: 'Form Laporan Harian - Bapak Diah Supriyanto',
     fields: [
       {
+        name: 'angsuran',
+        label: 'Angsuran',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
         name: 'fundingB2B',
         label: 'Funding B2B',
         type: 'dropdown-number',
@@ -219,20 +226,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         category: 'Marketing'
       },
       {
-        name: 'kegiatan',
-        label: 'Kegiatan (*Selain yang ada pada tabel)',
-        type: 'textarea',
-        required: false,
-        placeholder: 'Masukkan kegiatan lainnya...'
-      },
-      {
-        name: 'angsuran',
-        label: 'Angsuran',
-        type: 'dropdown-number',
-        required: false,
-        placeholder: '0'
-      },
-      {
         name: 'survey',
         label: 'Survey',
         type: 'dropdown-number',
@@ -245,6 +238,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         type: 'textarea',
         required: false,
         placeholder: 'Keterangan tambahan...'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Aktivitas Lainnya (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan aktivitas lainnya...'
       }
     ]
   },
@@ -303,11 +303,18 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         placeholder: '0'
       },
       {
-        name: 'lainLain',
-        label: 'Lain-Lain',
+        name: 'keterangan',
+        label: 'Keterangan',
         type: 'textarea',
         required: false,
-        placeholder: 'Aktivitas lain-lain...'
+        placeholder: 'Keterangan tambahan...'
+      },
+      {
+        name: 'lainLain',
+        label: 'Aktivitas Lainnya',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Aktivitas lainnya...'
       }
     ]
   },
@@ -366,11 +373,18 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         placeholder: '0'
       },
       {
-        name: 'lainLain',
-        label: 'Lain-Lain',
+        name: 'keterangan',
+        label: 'Keterangan',
         type: 'textarea',
         required: false,
-        placeholder: 'Aktivitas lain-lain...'
+        placeholder: 'Keterangan tambahan...'
+      },
+      {
+        name: 'lainLain',
+        label: 'Aktivitas Lainnya',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Aktivitas lainnya...'
       }
     ]
   },
