@@ -61,6 +61,8 @@ export default function LoginPage() {
     setError('')
 
     try {
+      console.log('🔐 Attempting admin login with:', { email })
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -69,18 +71,24 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
 
+      console.log('📡 Login response status:', response.status)
       const data = await response.json()
+      console.log('📦 Login response data:', data)
 
       if (response.ok) {
+        console.log('✅ Login successful, storing data...')
         // Store user data in localStorage
         localStorage.setItem('user', JSON.stringify(data.user))
         localStorage.setItem('token', data.token)
+        console.log('🚀 Redirecting to admin...')
         router.push('/admin')
       } else {
+        console.log('❌ Login failed:', data.message)
         setError(data.message || 'Login admin gagal')
       }
     } catch (error) {
-      setError('Terjadi kesalahan koneksi')
+      console.error('💥 Login error:', error)
+      setError('Terjadi kesalahan koneksi. Pastikan server berjalan.')
     } finally {
       setLoading(false)
     }

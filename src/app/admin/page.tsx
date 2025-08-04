@@ -17,9 +17,11 @@ interface Report {
   date: string
   reportData: any
   createdAt?: string
+  updatedAt?: string
   user: {
     name: string
     role: string
+    email: string
   }
 }
 
@@ -82,185 +84,57 @@ export default function AdminPage() {
     loadReports()
   }
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (reports.length === 0) {
       alert('Tidak ada data untuk diekspor')
       return
     }
 
-    // Group reports by user name
-    const reportsByUser = reports.reduce((acc, report) => {
-      const userName = report.user.name
-      if (!acc[userName]) {
-        acc[userName] = []
-      }
-      acc[userName].push(report)
-      return acc
-    }, {} as Record<string, Report[]>)
+    try {
+      console.log('Starting admin export with', reports.length, 'reports')
+      console.log('Sample report data:', reports[0])
+      
+      // Import the dynamic export function
+      const { createDynamicExcelExport } = await import('@/lib/excel-utils')
+      
+      // For admin export, we need to show all fields from all users
+      // Group reports by user to show their specific data
+      const reportsWithUserContext = reports.map(report => ({
+        id: report.id,
+        date: report.date,
+        reportData: report.reportData || {},
+        createdAt: report.createdAt || report.date,
+        user: {
+          name: report.user.name,
+          role: report.user.role // Keep original user role for field mapping
+        }
+      }))
 
-    // Create workbook
-    const wb = XLSX.utils.book_new()
+      console.log('Processed reports data:', reportsWithUserContext[0])
 
-    // Create sheet for each user
-    Object.entries(reportsByUser).forEach(([userName, userReports]) => {
-      // Create header information with logo reference and better formatting
-      const headerInfo = [
-        ['🏢 LAPORAN AKTIVITAS HARIAN MARKETING FUNDING'],
-        ['   KOPERASI SERBA USAHA KIRAP ENTREPRENEURSHIP (KSUKE)'],
-        ['   📍 Logo: Lihat file logo-ksu-ke.png'],
-        ['=========================================================='],
-        [''],
-        [`📋 Nama: ${userName}`],
-        [`👤 Role: ${userReports[0]?.user.role || ''}`],
-        [`📅 Periode: ${startDate ? new Date(startDate).toLocaleDateString('id-ID') : 'Semua'} - ${endDate ? new Date(endDate).toLocaleDateString('id-ID') : 'Semua'}`],
-        [`📊 Total Laporan: ${userReports.length} laporan`],
-        [`🗓️ Tanggal Export: ${new Date().toLocaleDateString('id-ID')}`],
-        [''],
-        ['=========================================================='],
-        ['                    DATA AKTIVITAS                    '],
-        ['=========================================================='],
-        [''] // Empty row before data
-      ]
-
-      // Create data rows with better formatting
-      const excelData = userReports.map((report, index) => {
-        const reportData = report.reportData || {}
-        return {
-          'No.': index + 1,
-          'Tanggal 📅': new Date(report.date).toLocaleDateString('id-ID'),
-          'Angsuran (Target) 🎯': reportData.angsuran || 0,
-          'Kegiatan 📝': reportData.kegiatan || '',
-          'Funding B2B 🏢': reportData.fundingB2B || 0,
-          'Funding Personal 👤': reportData.fundingPersonal || 0,
-          'Survey 📋': reportData.survey || 0,
-          'Keterangan 💬': reportData.keterangan || '',
-          'Waktu Input ⏰': new Date(report.createdAt || report.date).toLocaleString('id-ID')
+      // Create Excel export for all reports using the dynamic function
+      createDynamicExcelExport({
+        title: 'LAPORAN AKTIVITAS HARIAN - ADMIN',
+        subtitle: `Data Semua Laporan (${reports.length} laporan dari ${new Set(reports.map(r => r.user.name)).size} user)`,
+        data: reportsWithUserContext,
+        sheetName: 'Laporan Admin',
+        filename: 'Laporan_Admin_Semua_Data',
+        userInfo: {
+          name: 'Administrator',
+          role: 'ADMIN'
+        },
+        dateRange: {
+          start: startDate || undefined,
+          end: endDate || undefined
         }
       })
-
-      // Combine header and data
-      const worksheetData = [
-        ...headerInfo,
-        Object.keys(excelData[0] || {}), // Column headers
-        ...excelData.map(row => Object.values(row))
-      ]
-
-      // Create worksheet
-      const ws = XLSX.utils.aoa_to_sheet(worksheetData)
-
-      // Set column widths
-      const columnWidths = [
-        { wch: 6 },  // No
-        { wch: 15 }, // Tanggal
-        { wch: 18 }, // Angsuran
-        { wch: 25 }, // Kegiatan
-        { wch: 15 }, // Funding B2B
-        { wch: 18 }, // Funding Personal
-        { wch: 12 }, // Survey
-        { wch: 35 }, // Keterangan
-        { wch: 22 }  // Waktu Input
-      ]
-      ws['!cols'] = columnWidths
-
-      // Style title rows with cell formatting
-      if (ws['A1']) {
-        ws['A1'].s = {
-          font: { bold: true, sz: 16 },
-          alignment: { horizontal: "center", vertical: "center" }
-        }
-      }
       
-      if (ws['A2']) {
-        ws['A2'].s = {
-          font: { bold: true, sz: 12 },
-          alignment: { horizontal: "center", vertical: "center" }
-        }
-      }
-
-      if (ws['A3']) {
-        ws['A3'].s = {
-          font: { bold: true, sz: 10, color: { rgb: "0066CC" } },
-          alignment: { horizontal: "center", vertical: "center" }
-        }
-      }
-
-      // Style info rows
-      for (let row = 6; row <= 10; row++) {
-        const cellRef = XLSX.utils.encode_cell({ r: row - 1, c: 0 })
-        if (ws[cellRef]) {
-          ws[cellRef].s = {
-            font: { bold: true, sz: 11 },
-            alignment: { horizontal: "left", vertical: "center" }
-          }
-        }
-      }
-
-      // Style column headers
-      const headerRowIndex = 15 // Row 16 (0-based)
-      for (let col = 0; col < (excelData[0] ? Object.keys(excelData[0]).length : 0); col++) {
-        const cellRef = XLSX.utils.encode_cell({ r: headerRowIndex, c: col })
-        if (ws[cellRef]) {
-          ws[cellRef].s = {
-            font: { bold: true, sz: 12 },
-            alignment: { horizontal: "center", vertical: "center" }
-          }
-        }
-      }
-
-      // Add summary at the end
-      const lastDataRow = headerRowIndex + excelData.length + 2
-      const summaryData = [
-        [''],
-        ['=========================================================='],
-        ['                     📊 RINGKASAN                        '],
-        ['=========================================================='],
-        [`🎯 Total Angsuran: ${excelData.reduce((sum, row) => sum + (row['Angsuran (Target) 🎯'] || 0), 0)}`],
-        [`🏢 Total Funding B2B: ${excelData.reduce((sum, row) => sum + (row['Funding B2B 🏢'] || 0), 0)}`],
-        [`👤 Total Funding Personal: ${excelData.reduce((sum, row) => sum + (row['Funding Personal 👤'] || 0), 0)}`],
-        [`📋 Total Survey: ${excelData.reduce((sum, row) => sum + (row['Survey 📋'] || 0), 0)}`],
-        ['=========================================================='],
-        [''],
-        ['📝 Catatan: Logo KSU KE dapat dilihat di website atau file logo-ksu-ke.png']
-      ]
-
-      // Add summary to worksheet
-      summaryData.forEach((row, index) => {
-        const cellRef = XLSX.utils.encode_cell({ r: lastDataRow + index, c: 0 })
-        ws[cellRef] = { v: row[0], t: 's' }
-        if (index === 2) { // Title row
-          ws[cellRef].s = {
-            font: { bold: true, sz: 12 },
-            alignment: { horizontal: "center", vertical: "center" }
-          }
-        } else if (index >= 4 && index <= 7) { // Summary rows
-          ws[cellRef].s = {
-            font: { bold: true, sz: 10 },
-            alignment: { horizontal: "left", vertical: "center" }
-          }
-        }
-      })
-
-      // Merge title cells for better appearance
-      ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, // Title row 1
-        { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }, // Title row 2
-        { s: { r: 2, c: 0 }, e: { r: 2, c: 8 } }, // Logo reference
-        { s: { r: 12, c: 0 }, e: { r: 12, c: 8 } } // Data section title
-      ]
-
-      // Clean sheet name (remove invalid characters and limit length)
-      const sheetName = userName.replace(/[\\\/\?\*\[\]]/g, '').substring(0, 31)
-      
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, sheetName)
-    })
-
-    // Save file with formatted name
-    const now = new Date()
-    const dateStr = now.toLocaleDateString('id-ID').replace(/\//g, '-')
-    const timeStr = now.toLocaleTimeString('id-ID', { hour12: false }).replace(/:/g, '-')
-    const fileName = `Laporan_Aktivitas_KSUKE_${dateStr}_${timeStr}.xlsx`
-    XLSX.writeFile(wb, fileName)
+      alert('File Excel berhasil diunduh dengan tema Islamic Corporate! Data lengkap dari semua user.')
+    } catch (error) {
+      console.error('Export error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert('Gagal mengekspor data: ' + errorMessage)
+    }
   }
 
   const resetAllData = async () => {
