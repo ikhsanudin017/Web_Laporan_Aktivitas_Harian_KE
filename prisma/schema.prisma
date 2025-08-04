@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  password    String
+  role        UserRole
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  reports     DailyReport[]
+  accounts    Account[]
+  sessions    Session[]
+  
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model DailyReport {
+  id          String     @id @default(cuid())
+  userId      String
+  date        DateTime
+  reportData  Json       // Flexible JSON to store different form structures
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relations
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Removed unique constraint to allow multiple reports per day
+  @@map("daily_reports")
+}
+
+enum UserRole {
+  ADMIN
+  USTADZ_YULI          // Simple form: No, Tanggal, Aktivitas Harian
+  BAPAK_TOHA           // Simple form: No, Tanggal, Aktivitas Harian
+  BAPAK_SAYUDI         // Medium: No, Tanggal, Angsuran, Kegiatan, Funding (B2B/Personal), Survey, Keterangan
+  BPK_WINARNO          // Medium: No, Tanggal, Angsuran, empty, Kegiatan, Survey, Keterangan
+  BAPAK_ARWAN          // High: No, Tanggal, Funding (B2B/Personal), Marketing (B2B/Personal), Kegiatan, Angsuran, Survey, Keterangan
+  BAPAK_DIAH           // High: No, Tanggal, Funding (B2B/Personal), Marketing (B2B/Personal), Kegiatan, Angsuran, Survey, Keterangan
+  BAPAK_PRASETYO       // Complex: No, Tanggal, KTP, ADR, QUR'AN, WAKAF, GOTA, B2B, Maintenance, Lain-Lain
+  BAPAK_GIYARTO        // Complex: No, Tanggal, KTP, ADR, QUR'AN, WAKAF, GOTA, B2B, Maintenance, Lain-Lain
+}

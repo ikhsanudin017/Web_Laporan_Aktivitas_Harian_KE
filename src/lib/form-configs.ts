@@ -1,0 +1,377 @@
+import { FormConfig } from '@/types'
+
+export const FORM_CONFIGS: Record<string, FormConfig> = {
+  USTADZ_YULI: {
+    role: 'USTADZ_YULI' as any,
+    title: 'Form Laporan Harian - Ustadz Yuli',
+    fields: [
+      {
+        name: 'aktivitasHarian',
+        label: 'Aktivitas Harian',
+        type: 'textarea',
+        required: true,
+        placeholder: 'Masukkan aktivitas harian Anda...'
+      }
+    ]
+  },
+
+  BAPAK_TOHA: {
+    role: 'BAPAK_TOHA' as any,
+    title: 'Form Laporan Harian - Bapak Toha',
+    fields: [
+      {
+        name: 'aktivitasHarian',
+        label: 'Aktivitas Harian',
+        type: 'textarea',
+        required: true,
+        placeholder: 'Masukkan aktivitas harian Anda...'
+      }
+    ]
+  },
+
+  BAPAK_SAYUDI: {
+    role: 'BAPAK_SAYUDI' as any,
+    title: 'Form Laporan Harian - Bapak Sayudi',
+    fields: [
+      {
+        name: 'angsuran',
+        label: 'Angsuran',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Kegiatan (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan kegiatan lainnya...'
+      },
+      {
+        name: 'fundingB2B',
+        label: 'Funding B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Funding'
+      },
+      {
+        name: 'fundingPersonal',
+        label: 'Funding Personal',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Funding'
+      },
+      {
+        name: 'survey',
+        label: 'Survey',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'keterangan',
+        label: 'Keterangan',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Keterangan tambahan...'
+      }
+    ]
+  },
+
+  BPK_WINARNO: {
+    role: 'BPK_WINARNO' as any,
+    title: 'Form Laporan Harian - Bpk Winarno',
+    fields: [
+      {
+        name: 'angsuran',
+        label: 'Angsuran',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Kegiatan (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan kegiatan lainnya...'
+      },
+      {
+        name: 'survey',
+        label: 'Survey',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'keterangan',
+        label: 'Keterangan',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Keterangan tambahan...'
+      }
+    ]
+  },
+
+  BAPAK_ARWAN: {
+    role: 'BAPAK_ARWAN' as any,
+    title: 'Form Laporan Harian - Bapak Arwan',
+    fields: [
+      {
+        name: 'fundingB2B',
+        label: 'Funding B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Funding'
+      },
+      {
+        name: 'fundingPersonal',
+        label: 'Funding Personal',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Funding'
+      },
+      {
+        name: 'marketingB2B',
+        label: 'Marketing B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Marketing'
+      },
+      {
+        name: 'marketingPersonal',
+        label: 'Marketing Personal',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Marketing'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Kegiatan (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan kegiatan lainnya...'
+      },
+      {
+        name: 'angsuran',
+        label: 'Angsuran',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'survey',
+        label: 'Survey',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'keterangan',
+        label: 'Keterangan',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Keterangan tambahan...'
+      }
+    ]
+  },
+
+  BAPAK_DIAH: {
+    role: 'BAPAK_DIAH' as any,
+    title: 'Form Laporan Harian - Bapak Diah Supriyanto',
+    fields: [
+      {
+        name: 'fundingB2B',
+        label: 'Funding B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Funding'
+      },
+      {
+        name: 'fundingPersonal',
+        label: 'Funding Personal',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Funding'
+      },
+      {
+        name: 'marketingB2B',
+        label: 'Marketing B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Marketing'
+      },
+      {
+        name: 'marketingPersonal',
+        label: 'Marketing Personal',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Marketing'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Kegiatan (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan kegiatan lainnya...'
+      },
+      {
+        name: 'angsuran',
+        label: 'Angsuran',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'survey',
+        label: 'Survey',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'keterangan',
+        label: 'Keterangan',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Keterangan tambahan...'
+      }
+    ]
+  },
+
+  BAPAK_PRASETYO: {
+    role: 'BAPAK_PRASETYO' as any,
+    title: 'Form Laporan Harian - Bapak Prasetyo Dani',
+    fields: [
+      {
+        name: 'ktp',
+        label: 'KTP',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'adr',
+        label: 'ADR',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'quran',
+        label: "QUR'AN",
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'wakaf',
+        label: 'WAKAF',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'gota',
+        label: 'GOTA',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'b2b',
+        label: 'B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'maintenance',
+        label: 'Maintenance',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'lainLain',
+        label: 'Lain-Lain',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Aktivitas lain-lain...'
+      }
+    ]
+  },
+
+  BAPAK_GIYARTO: {
+    role: 'BAPAK_GIYARTO' as any,
+    title: 'Form Laporan Harian - Bapak Giyarto',
+    fields: [
+      {
+        name: 'ktp',
+        label: 'KTP',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'adr',
+        label: 'ADR',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'quran',
+        label: "QUR'AN",
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'wakaf',
+        label: 'WAKAF',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'gota',
+        label: 'GOTA',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'b2b',
+        label: 'B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'maintenance',
+        label: 'Maintenance',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'lainLain',
+        label: 'Lain-Lain',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Aktivitas lain-lain...'
+      }
+    ]
+  }
+}
