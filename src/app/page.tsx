@@ -189,18 +189,43 @@ export default function LoginPage() {
                     onChange={(e) => setSelectedUser(e.target.value)}
                     className="input-islamic w-full text-gray-800 font-medium shadow-lg hover:shadow-xl focus:shadow-xl appearance-none"
                     style={{ 
-                      minHeight: '48px',
+                      minHeight: '52px',
                       fontSize: '16px',
-                      paddingRight: '40px',
+                      paddingRight: '48px',
+                      paddingLeft: '16px',
+                      paddingTop: '12px',
+                      paddingBottom: '12px',
+                      lineHeight: '1.4',
+                      whiteSpace: 'normal',
+                      overflow: 'visible',
+                      textOverflow: 'clip',
+                      wordWrap: 'break-word',
+                      wordBreak: 'keep-all',
                       backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6,9 12,15 18,9\'%3e%3c/polyline%3e%3c/svg%3e")',
                       backgroundRepeat: 'no-repeat',
                       backgroundPosition: 'right 12px center',
-                      backgroundSize: '16px'
+                      backgroundSize: '18px'
                     }}
                   >
                     <option value="" className="text-gray-500 py-3">-- اختر الاسم - Pilih Nama --</option>
                     {users.map((user) => (
-                      <option key={user.id} value={user.id.toString()} className="text-gray-800 font-medium py-3" style={{ fontSize: '16px', padding: '12px' }}>
+                      <option 
+                        key={user.id} 
+                        value={user.id.toString()} 
+                        className="text-gray-800 font-medium py-3" 
+                        style={{ 
+                          fontSize: '16px', 
+                          padding: '12px 16px',
+                          lineHeight: '1.4',
+                          whiteSpace: 'normal',
+                          wordWrap: 'break-word',
+                          overflow: 'visible',
+                          textOverflow: 'clip',
+                          minHeight: '48px',
+                          display: 'block',
+                          width: '100%'
+                        }}
+                      >
                         {user.name}
                       </option>
                     ))}
