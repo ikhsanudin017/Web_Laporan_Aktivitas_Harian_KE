@@ -467,7 +467,7 @@ export default function AdminPage() {
                               {new Date(report.date).toLocaleDateString('id-ID')}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(report.date).toLocaleTimeString('id-ID')}
+                              {new Date(report.createdAt || report.date).toLocaleString('id-ID')}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               <div className="max-w-xs overflow-hidden">

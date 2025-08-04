@@ -181,6 +181,35 @@ body {
     z-index: 10;
     width: 100%;
     font-size: 16px; /* Prevents zoom on iOS */
+    color: #1f2937; /* Ensure text color is dark */
+  }
+  
+  /* Specific styling for date input */
+  input[type="date"].input-islamic {
+    color: #1f2937 !important; /* Force dark text color */
+    -webkit-text-fill-color: #1f2937 !important; /* For webkit browsers */
+  }
+  
+  /* Date input calendar icon styling */
+  input[type="date"].input-islamic::-webkit-calendar-picker-indicator {
+    color: #1f2937 !important;
+    opacity: 1 !important;
+    filter: invert(0) !important;
+  }
+  
+  /* Additional date input fixes for different browsers */
+  input[type="date"].input-islamic::-webkit-datetime-edit-text,
+  input[type="date"].input-islamic::-webkit-datetime-edit-month-field,
+  input[type="date"].input-islamic::-webkit-datetime-edit-day-field,
+  input[type="date"].input-islamic::-webkit-datetime-edit-year-field {
+    color: #1f2937 !important;
+    -webkit-text-fill-color: #1f2937 !important;
+  }
+  
+  /* Firefox date input styling */
+  input[type="date"].input-islamic::-moz-placeholder {
+    color: #1f2937 !important;
+    opacity: 1;
   }
   
   .input-islamic:focus {

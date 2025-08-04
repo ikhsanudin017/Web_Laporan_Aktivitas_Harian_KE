@@ -103,9 +103,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔍 POST /api/reports - Starting request processing...')
+    
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    console.log('🔐 Token received:', token?.substring(0, 20) + '...')
     
     if (!token) {
+      console.log('❌ No token provided')
       return NextResponse.json(
         { message: 'Unauthorized' },
         { status: 401 }
@@ -116,7 +120,9 @@ export async function POST(request: NextRequest) {
     
     // Check if it's a mock token (for dropdown users)
     if (token.startsWith('mock-token-')) {
+      console.log('🎭 Processing mock token...')
       const userIndex = parseInt(token.replace('mock-token-', ''))
+      console.log('👤 User index:', userIndex)
       
       // Get user by email to get real ID
       const userEmails = [
@@ -131,29 +137,37 @@ export async function POST(request: NextRequest) {
       ]
       
       const userEmail = userEmails[userIndex - 1]
+      console.log('📧 Looking for user email:', userEmail)
+      
       if (!userEmail) {
+        console.log('❌ User email not found for index:', userIndex)
         return NextResponse.json(
           { message: 'User tidak ditemukan' },
           { status: 401 }
         )
       }
       
+      console.log('🔍 Searching user in database...')
       const user = await prisma.user.findUnique({
         where: { email: userEmail }
       })
       
       if (!user) {
+        console.log('❌ User not found in database:', userEmail)
         return NextResponse.json(
           { message: 'User tidak ditemukan' },
           { status: 401 }
         )
       }
       
+      console.log('✅ User found:', user.name, 'ID:', user.id)
       userId = user.id
     } else {
+      console.log('🔑 Processing JWT token...')
       // Verify JWT token (for admin)
       const decoded = verifyToken(token)
       if (!decoded) {
+        console.log('❌ Invalid JWT token')
         return NextResponse.json(
           { message: 'Invalid token' },
           { status: 401 }
@@ -162,15 +176,20 @@ export async function POST(request: NextRequest) {
       userId = decoded.userId
     }
 
+    console.log('📊 Parsing request data...')
     const { date, reportData } = await request.json()
+    console.log('📅 Date:', date)
+    console.log('📋 Report data keys:', Object.keys(reportData || {}))
 
     if (!date || !reportData) {
+      console.log('❌ Missing required data - date:', !!date, 'reportData:', !!reportData)
       return NextResponse.json(
         { message: 'Date and reportData are required' },
         { status: 400 }
       )
     }
 
+    console.log('💾 Creating database record...')
     // Create new daily report (always insert new record)
     const report = await prisma.dailyReport.create({
       data: {
@@ -180,15 +199,24 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('✅ Report saved successfully! ID:', report.id)
     return NextResponse.json({
       message: 'Report saved successfully',
       report
     })
 
   } catch (error) {
-    console.error('Save report error:', error)
+    console.error('💥 Save report error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'UnknownError',
+      error: error
+    })
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { 
+        message: 'Internal server error', 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      },
       { status: 500 }
     )
   }

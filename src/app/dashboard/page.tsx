@@ -513,6 +513,10 @@ export default function DashboardPage() {
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
                       className="input-islamic w-full shadow-lg hover:shadow-xl focus:shadow-xl min-h-[44px]"
+                      style={{
+                        color: '#1f2937',
+                        WebkitTextFillColor: '#1f2937'
+                      }}
                     />
                     <div className="mt-1 text-xs text-gray-500 flex items-center space-x-1">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
