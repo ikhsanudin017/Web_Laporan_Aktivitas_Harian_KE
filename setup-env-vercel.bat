@@ -1,13 +1,64 @@
 @echo off
-echo ================================================
-echo SETUP ENVIRONMENT FOR VERCEL DEPLOYMENT
-echo ================================================
+echo 🚨 FIX VERCEL INTERNAL SERVER ERROR
+echo ===================================
 echo.
 
-echo This script will help you generate secure secrets for production.
+echo Masalah utama: Environment variables belum di-set di Vercel Dashboard
 echo.
 
-echo [1/3] Generating JWT Secret...
+echo 🔧 STEP 1: SETUP DATABASE CLOUD
+echo ================================
+echo.
+echo Pilih database cloud provider:
+echo 1) PlanetScale ^(MySQL^) - Recommended untuk production
+echo 2) Neon ^(PostgreSQL^) - Good alternative  
+echo 3) Supabase ^(PostgreSQL^) - Feature-rich option
+echo.
+
+set /p dbChoice="Pilih database ^(1-3^): "
+
+if "%dbChoice%"=="1" (
+    echo.
+    echo 🌟 PLANETSCALE SETUP:
+    echo 1. Buka https://planetscale.com
+    echo 2. Daftar gratis
+    echo 3. Create database: ksuke-reports
+    echo 4. Region: ap-southeast-1 ^(Singapore^)
+    echo 5. Klik Connect -^> Prisma -^> Copy connection string
+    echo.
+    echo Format: mysql://username:password@host.mysql.psdb.cloud/ksuke-reports?ssl={...}
+    echo.
+    set dbProvider=mysql
+) else if "%dbChoice%"=="2" (
+    echo.
+    echo 🐘 NEON SETUP:
+    echo 1. Buka https://neon.tech
+    echo 2. Daftar gratis
+    echo 3. Create project: ksuke-reports
+    echo 4. Copy connection string dari dashboard
+    echo.
+    echo Format: postgresql://username:password@host.neon.tech/database?sslmode=require
+    echo.
+    set dbProvider=postgresql
+) else if "%dbChoice%"=="3" (
+    echo.
+    echo ⚡ SUPABASE SETUP:
+    echo 1. Buka https://supabase.com
+    echo 2. Daftar gratis
+    echo 3. Create project: ksuke-reports
+    echo 4. Settings -^> Database -^> Copy connection string
+    echo.
+    echo Format: postgresql://postgres:password@db.host.supabase.co:5432/postgres
+    echo.
+    set dbProvider=postgresql
+) else (
+    echo Invalid choice!
+    pause
+    exit /b 1
+)
+
+echo 🔐 STEP 2: GENERATE SECURE SECRETS
+echo ==================================
 echo You can use this JWT_SECRET in Vercel:
 powershell -Command "[System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([System.Guid]::NewGuid().ToString() + [System.Guid]::NewGuid().ToString()))"
 echo.
