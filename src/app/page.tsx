@@ -87,35 +87,35 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-yellow-50 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-yellow-50 py-4 px-2 sm:py-12 sm:px-4 lg:px-8 relative overflow-hidden">
       {/* Islamic Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-0 left-0 w-full h-full"></div>
       </div>
       
-      {/* Geometric Background Elements */}
-      <div className="absolute top-10 left-10 w-32 h-32 border-2 border-yellow-300 rounded-full animate-bounce opacity-20"></div>
-      <div className="absolute bottom-20 right-20 w-24 h-24 bg-green-200 rounded-lg rotate-45 animate-pulse opacity-20"></div>
-      <div className="absolute top-1/3 right-10 w-16 h-16 border border-green-300 rounded-full animate-ping opacity-20"></div>
+      {/* Geometric Background Elements - Hidden on small screens */}
+      <div className="hidden sm:block absolute top-10 left-10 w-32 h-32 border-2 border-yellow-300 rounded-full animate-bounce opacity-20"></div>
+      <div className="hidden sm:block absolute bottom-20 right-20 w-24 h-24 bg-green-200 rounded-lg rotate-45 animate-pulse opacity-20"></div>
+      <div className="hidden md:block absolute top-1/3 right-10 w-16 h-16 border border-green-300 rounded-full animate-ping opacity-20"></div>
       
-      <div className="max-w-md w-full space-y-8 relative z-10">
-        <div className="islamic-card p-8 animate-slide-up">
+      <div className="max-w-md w-full space-y-4 sm:space-y-8 relative z-10">
+        <div className="islamic-card animate-slide-up">
           {/* Logo Section */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-6">
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="flex justify-center mb-4 sm:mb-6">
               <div className="relative">
                 <div className="absolute inset-0 bg-yellow-300 rounded-full opacity-20 animate-pulse"></div>
                 <Image 
                   src="/logo-ksu-ke.png" 
                   alt="Logo KSU KE" 
-                  width={120} 
-                  height={120}
-                  className="rounded-full shadow-2xl border-4 border-yellow-300 relative z-10"
+                  width={80} 
+                  height={80}
+                  className="sm:w-[120px] sm:h-[120px] rounded-full shadow-2xl border-4 border-yellow-300 relative z-10"
                 />
               </div>
             </div>
             
-            <h2 className="text-3xl font-bold text-green-800 mb-2" style={{fontFamily: 'Poppins, sans-serif'}}>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-800 mb-2" style={{fontFamily: 'Poppins, sans-serif'}}>
               نظام التقارير اليومية
             </h2>
             <h3 className="text-2xl font-semibold text-green-700 mb-3" style={{fontFamily: 'Poppins, sans-serif'}}>
@@ -187,16 +187,20 @@ export default function LoginPage() {
                     id="user-select"
                     value={selectedUser}
                     onChange={(e) => setSelectedUser(e.target.value)}
-                    className="input-islamic w-full text-gray-800 font-medium shadow-lg hover:shadow-xl focus:shadow-xl"
+                    className="input-islamic w-full text-gray-800 font-medium shadow-lg hover:shadow-xl focus:shadow-xl appearance-none"
                     style={{ 
-                      minHeight: '42px',
-                      position: 'relative',
-                      zIndex: 100
+                      minHeight: '48px',
+                      fontSize: '16px',
+                      paddingRight: '40px',
+                      backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6,9 12,15 18,9\'%3e%3c/polyline%3e%3c/svg%3e")',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 12px center',
+                      backgroundSize: '16px'
                     }}
                   >
-                    <option value="" className="text-gray-500 py-2">-- اختر الاسم - Pilih Nama --</option>
+                    <option value="" className="text-gray-500 py-3">-- اختر الاسم - Pilih Nama --</option>
                     {users.map((user) => (
-                      <option key={user.id} value={user.id.toString()} className="text-gray-800 font-medium py-2">
+                      <option key={user.id} value={user.id.toString()} className="text-gray-800 font-medium py-3" style={{ fontSize: '16px', padding: '12px' }}>
                         {user.name}
                       </option>
                     ))}
