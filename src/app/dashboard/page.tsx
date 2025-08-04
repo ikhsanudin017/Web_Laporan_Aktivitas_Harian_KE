@@ -177,7 +177,7 @@ export default function DashboardPage() {
       }))
 
       // Use the new dynamic export function with Islamic Corporate theme
-      createDynamicExcelExport({
+      const excelResult = createDynamicExcelExport({
         title: 'LAPORAN AKTIVITAS HARIAN',
         subtitle: `Data Laporan - ${user?.name?.toUpperCase() || 'USER'}`,
         data: reportsData,
@@ -188,6 +188,17 @@ export default function DashboardPage() {
           role: user?.role || 'UNKNOWN'
         }
       })
+
+      // Create download link and trigger download
+      const blob = new Blob([excelResult.buffer], { type: excelResult.mimeType })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${excelResult.filename}_${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
       
       alert('File Excel berhasil diunduh dengan tema Islamic Corporate! Kolom sesuai dengan form input Anda.')
     } catch (error) {

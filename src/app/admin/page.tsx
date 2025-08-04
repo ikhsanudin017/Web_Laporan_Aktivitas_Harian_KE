@@ -111,7 +111,7 @@ export default function AdminPage() {
       console.log('Processed reports data:', reportsWithUserContext[0])
 
       // Create Excel export for all reports using the dynamic function
-      createDynamicExcelExport({
+      const excelResult = createDynamicExcelExport({
         title: 'LAPORAN AKTIVITAS HARIAN - ADMIN',
         subtitle: `Data Semua Laporan (${reports.length} laporan dari ${new Set(reports.map(r => r.user.name)).size} user)`,
         data: reportsWithUserContext,
@@ -126,6 +126,17 @@ export default function AdminPage() {
           end: endDate || undefined
         }
       })
+
+      // Create download link and trigger download
+      const blob = new Blob([excelResult.buffer], { type: excelResult.mimeType })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${excelResult.filename}_${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
       
       alert('File Excel berhasil diunduh dengan tema Islamic Corporate! Data lengkap dari semua user.')
     } catch (error) {
