@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createDynamicExcelExport } from '@/lib/excel-utils'
 import * as XLSX from 'xlsx'
 import Image from 'next/image'
 
@@ -93,9 +94,6 @@ export default function AdminPage() {
     try {
       console.log('Starting admin export with', reports.length, 'reports')
       console.log('Sample report data:', reports[0])
-      
-      // Import the dynamic export function
-      const { createDynamicExcelExport } = await import('@/lib/excel-utils')
       
       // For admin export, we need to show all fields from all users
       // Group reports by user to show their specific data
