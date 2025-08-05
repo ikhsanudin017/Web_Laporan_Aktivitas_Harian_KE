@@ -35,12 +35,48 @@ export default function DashboardPage() {
     const indonesianDate = new Date(today.getTime() + (7 * 60 * 60 * 1000))
     return indonesianDate.toISOString().split('T')[0]
   }
+
+  // Fungsi untuk menampilkan waktu relatif (menggunakan currentTime untuk real-time update)
+  const getRelativeTime = (dateString: string) => {
+    const inputTime = new Date(dateString)
+    const diffInSeconds = Math.floor((currentTime.getTime() - inputTime.getTime()) / 1000)
+
+    if (diffInSeconds < 0) {
+      return 'Baru saja'
+    } else if (diffInSeconds < 60) {
+      return `${diffInSeconds} detik yang lalu`
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60)
+      return `${minutes} menit yang lalu`
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600)
+      return `${hours} jam yang lalu`
+    } else if (diffInSeconds < 2592000) {
+      const days = Math.floor(diffInSeconds / 86400)
+      return `${days} hari yang lalu`
+    } else {
+      const months = Math.floor(diffInSeconds / 2592000)
+      return `${months} bulan yang lalu`
+    }
+  }
   
   const [selectedDate, setSelectedDate] = useState(getTodayDate())
   const [activeTab, setActiveTab] = useState<'input' | 'history'>('input')
   const [historyReports, setHistoryReports] = useState<HistoryReport[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [editingReport, setEditingReport] = useState<HistoryReport | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null)
+  const [currentTime, setCurrentTime] = useState(new Date())
   const router = useRouter()
+
+  // Update waktu relatif setiap 30 detik
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 30000) // Update setiap 30 detik
+
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -109,6 +145,14 @@ export default function DashboardPage() {
 
     try {
       const token = localStorage.getItem('token')
+      
+      // Check if we're editing an existing report
+      if (editingReport) {
+        await handleEditReport(editingReport.id, reportData)
+        return
+      }
+
+      // Create new report
       const response = await fetch('/api/reports', {
         method: 'POST',
         headers: {
@@ -231,8 +275,75 @@ export default function DashboardPage() {
   const loadReportFromHistory = (report: HistoryReport) => {
     setSelectedDate(report.date.split('T')[0])
     setReportData(report.reportData)
+    setEditingReport(report)
     setActiveTab('input')
     setMessage(`Data dari tanggal ${new Date(report.date).toLocaleDateString('id-ID')} dimuat untuk diedit`)
+  }
+
+  const handleEditReport = async (reportId: string, updatedData: any) => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/reports/${reportId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          reportData: updatedData
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage('Laporan berhasil diperbarui!')
+        setEditingReport(null)
+        setReportData({})
+        await loadHistoryReports() // Refresh history
+      } else {
+        setMessage(data.message || 'Gagal memperbarui laporan')
+      }
+    } catch (error) {
+      setMessage('Terjadi kesalahan saat memperbarui laporan')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteReport = async (reportId: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus laporan ini? Tindakan ini tidak dapat dibatalkan.')) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/reports/${reportId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage('Laporan berhasil dihapus!')
+        await loadHistoryReports() // Refresh history
+        setShowDeleteModal(null)
+      } else {
+        setMessage(data.message || 'Gagal menghapus laporan')
+      }
+    } catch (error) {
+      setMessage('Terjadi kesalahan saat menghapus laporan')
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditingReport(null)
+    setReportData({})
+    setMessage('')
   }
 
   const handleLogout = () => {
@@ -291,9 +402,16 @@ export default function DashboardPage() {
               </div>
               {/* Text Content */}
               <div className="flex-1 space-y-1">
-                <h1 className="text-base sm:text-lg lg:text-xl font-bold text-white leading-tight" style={{fontFamily: 'Poppins, sans-serif'}}>
-                  {formConfig.title}
-                </h1>
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-base sm:text-lg lg:text-xl font-bold text-white leading-tight" style={{fontFamily: 'Poppins, sans-serif'}}>
+                    {formConfig.title}
+                  </h1>
+                  {editingReport && (
+                    <span className="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-medium animate-pulse">
+                      MODE EDIT
+                    </span>
+                  )}
+                </div>
                 <div className="text-yellow-100 text-xs sm:text-sm">
                   <div className="font-medium">
                     مرحباً - Selamat datang,
@@ -604,10 +722,22 @@ export default function DashboardPage() {
                         <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
                         </svg>
-                        <span className="text-xs sm:text-sm">حفظ التقرير - Simpan Laporan</span>
+                        <span className="text-xs sm:text-sm">{editingReport ? 'تحديث التقرير - Update Laporan' : 'حفظ التقرير - Simpan Laporan'}</span>
                       </>
                     )}
                   </button>
+                  {editingReport && (
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="bg-red-500 text-white font-medium px-4 sm:px-6 py-3 rounded-lg hover:bg-red-600 hover:shadow-lg hover:scale-105 transition-all duration-200 border border-red-600 flex items-center justify-center space-x-2 min-h-[44px] text-sm sm:text-base"
+                    >
+                      <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-xs sm:text-sm">إلغاء - Batal Edit</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={resetForm}
@@ -648,8 +778,21 @@ export default function DashboardPage() {
                       <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Tanggal Laporan
                       </th>
-                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                        Tanggal Input
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center space-x-1">
+                          <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                          </svg>
+                          <span>Waktu Input Realtime</span>
+                        </div>
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                        <div className="flex items-center space-x-1">
+                          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                          </svg>
+                          <span>Status Update</span>
+                        </div>
                       </th>
                       <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Data Laporan
@@ -669,7 +812,79 @@ export default function DashboardPage() {
                           {new Date(report.date).toLocaleDateString('id-ID')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(report.createdAt).toLocaleDateString('id-ID')}
+                          <div 
+                            className="flex flex-col space-y-2 cursor-help" 
+                            title={`Input pada: ${new Date(report.createdAt).toLocaleString('id-ID', { 
+                              timeZone: 'Asia/Jakarta',
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit'
+                            })} WIB`}
+                          >
+                            {/* Waktu lengkap */}
+                            <div className="flex items-center space-x-2">
+                              <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                              </svg>
+                              <span className="font-medium text-blue-600">
+                                {new Date(report.createdAt).toLocaleString('id-ID', {
+                                  weekday: 'short',
+                                  day: '2-digit',
+                                  month: '2-digit', 
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                  timeZone: 'Asia/Jakarta'
+                                })}
+                              </span>
+                            </div>
+                            
+                            {/* Waktu relatif */}
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                              <span className="text-xs text-gray-600 bg-green-50 px-2 py-1 rounded-full border border-green-200 hover:bg-green-100 transition-colors duration-200">
+                                {getRelativeTime(report.createdAt)}
+                              </span>
+                            </div>
+                            
+                            {/* Zona waktu */}
+                            <div className="flex items-center space-x-1">
+                              <svg className="w-3 h-3 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.559-.499-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.559.499.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.497-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.029 11H4.083a6.004 6.004 0 002.783 4.118z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-xs text-indigo-500 font-medium">
+                                WIB (UTC+7)
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
+                          <div className="flex flex-col">
+                            {report.updatedAt && report.updatedAt !== report.createdAt ? (
+                              <>
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  Diupdate
+                                </span>
+                                <span className="text-xs text-gray-400 mt-1">
+                                  {new Date(report.updatedAt).toLocaleString('id-ID', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    timeZone: 'Asia/Jakarta'
+                                  })}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Original
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <div className="max-w-xs overflow-hidden">
@@ -681,12 +896,28 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => loadReportFromHistory(report)}
-                            className="text-primary-600 hover:text-primary-900"
-                          >
-                            Edit
-                          </button>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => loadReportFromHistory(report)}
+                              className="text-indigo-600 hover:text-indigo-900 flex items-center space-x-1"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                              </svg>
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteReport(report.id)}
+                              className="text-red-600 hover:text-red-900 flex items-center space-x-1"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
+                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3l1.146-1.146a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 111.414-1.414L9 9V6a1 1 0 011-1z" clipRule="evenodd" />
+                                <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h6a2 2 0 002-2V5a1 1 0 100-2H3z" clipRule="evenodd" />
+                              </svg>
+                              <span>Hapus</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
