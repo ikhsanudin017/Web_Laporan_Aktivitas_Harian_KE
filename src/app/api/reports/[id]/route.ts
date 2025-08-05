@@ -4,8 +4,9 @@ import { verifyToken } from '@/lib/auth'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     
@@ -135,8 +136,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     
