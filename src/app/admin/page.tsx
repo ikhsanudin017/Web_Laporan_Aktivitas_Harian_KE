@@ -415,6 +415,270 @@ export default function AdminPage() {
             </form>
           </div>
 
+          {/* Monitoring Dashboard */}
+          <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base sm:text-lg font-medium text-gray-900">
+                Monitoring Pengisian Laporan Bulan Ini
+              </h2>
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+                <span>
+                  Periode: 1 - {new Date().getDate()} {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+            </div>
+
+            {(() => {
+              // Fungsi untuk menghitung statistik monitoring
+              const calculateUserStats = () => {
+                const today = new Date()
+                const currentMonth = today.getMonth()
+                const currentYear = today.getFullYear()
+                const currentDay = today.getDate()
+                
+                // Buat array tanggal dari tanggal 1 sampai hari ini
+                const daysInMonth = []
+                for (let day = 1; day <= currentDay; day++) {
+                  daysInMonth.push(new Date(currentYear, currentMonth, day).toISOString().split('T')[0])
+                }
+                
+                // Group reports by user dan hitung statistik
+                const userStats = reports.reduce((acc, report) => {
+                  const userName = report.user.name
+                  const reportDate = report.date
+                  
+                  if (!acc[userName]) {
+                    acc[userName] = {
+                      name: userName,
+                      email: report.user.email,
+                      role: report.user.role,
+                      reportedDates: new Set(),
+                      totalReports: 0,
+                      lastReportDate: null
+                    }
+                  }
+                  
+                  acc[userName].reportedDates.add(reportDate)
+                  acc[userName].totalReports++
+                  
+                  if (!acc[userName].lastReportDate || reportDate > acc[userName].lastReportDate) {
+                    acc[userName].lastReportDate = reportDate
+                  }
+                  
+                  return acc
+                }, {} as Record<string, any>)
+                
+                // Hitung persentase untuk setiap user
+                return Object.values(userStats).map((stat: any) => {
+                  const reportedCount = stat.reportedDates.size
+                  const percentage = Math.round((reportedCount / daysInMonth.length) * 100)
+                  const missingDays = daysInMonth.length - reportedCount
+                  
+                  return {
+                    ...stat,
+                    reportedDays: reportedCount,
+                    totalExpectedDays: daysInMonth.length,
+                    percentage,
+                    missingDays,
+                    status: percentage === 100 ? 'complete' : percentage >= 80 ? 'good' : percentage >= 60 ? 'warning' : 'poor'
+                  }
+                }).sort((a, b) => b.percentage - a.percentage)
+              }
+
+              const userStats = calculateUserStats()
+              
+              return (
+                <>
+                  {/* Overall Statistics */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-blue-900">Total User Aktif</p>
+                          <p className="text-lg font-semibold text-blue-700">{userStats.length}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="w-8 h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-green-900">User Lengkap (100%)</p>
+                          <p className="text-lg font-semibold text-green-700">
+                            {userStats.filter((stat: any) => stat.percentage === 100).length}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="w-8 h-8 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-yellow-900">Perlu Perhatian</p>
+                          <p className="text-lg font-semibold text-yellow-700">
+                            {userStats.filter((stat: any) => stat.percentage < 80).length}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="w-8 h-8 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+                            <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-purple-900">Rata-rata Kepatuhan</p>
+                          <p className="text-lg font-semibold text-purple-700">
+                            {userStats.length > 0 ? Math.round(userStats.reduce((acc: number, stat: any) => acc + stat.percentage, 0) / userStats.length) : 0}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* User Performance Table */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Progress
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Laporan
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Terakhir Input
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {userStats.map((stat: any) => (
+                          <tr key={stat.name} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-8 w-8">
+                                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center">
+                                    <span className="text-white text-sm font-medium">
+                                      {stat.name.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="ml-3">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {stat.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {stat.email}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between text-xs mb-1">
+                                    <span className="font-medium text-gray-700">{stat.percentage}%</span>
+                                    <span className="text-gray-500">
+                                      {stat.reportedDays}/{stat.totalExpectedDays}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className={`h-2 rounded-full transition-all duration-300 ${
+                                        stat.percentage === 100 ? 'bg-green-500' :
+                                        stat.percentage >= 80 ? 'bg-blue-500' :
+                                        stat.percentage >= 60 ? 'bg-yellow-500' :
+                                        'bg-red-500'
+                                      }`}
+                                      style={{ width: `${stat.percentage}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-gray-600 ml-2 min-w-[60px]">
+                                  {stat.percentage}%
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex flex-col">
+                                <span className="font-medium">{stat.totalReports} laporan</span>
+                                {stat.missingDays > 0 && (
+                                  <span className="text-xs text-red-600">
+                                    Kurang {stat.missingDays} hari
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                stat.status === 'complete' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : stat.status === 'good'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : stat.status === 'warning'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {stat.status === 'complete' && '✓ Lengkap'}
+                                {stat.status === 'good' && '👍 Baik'}
+                                {stat.status === 'warning' && '⚠️ Perhatian'}
+                                {stat.status === 'poor' && '⚡ Perlu Tindakan'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {stat.lastReportDate ? 
+                                new Date(stat.lastReportDate).toLocaleDateString('id-ID') 
+                                : 'Belum ada laporan'
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {userStats.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Belum ada data laporan untuk bulan ini
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+          </div>
+
           {/* Reports Table */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
