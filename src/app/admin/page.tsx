@@ -417,17 +417,33 @@ export default function AdminPage() {
 
           {/* Monitoring Dashboard */}
           <div className="bg-white shadow rounded-lg p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-base sm:text-lg font-medium text-gray-900">
-                Monitoring Pengisian Laporan Bulan Ini
-              </h2>
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                </svg>
-                <span>
-                  Periode: 1 - {new Date().getDate()} {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-                </span>
+            {/* Header Section */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-3 lg:space-y-0">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  📊 Monitoring Pengisian Laporan
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Pantau kepatuhan pengisian laporan aktivitas harian secara real-time
+                </p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 text-sm text-gray-600">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-medium">
+                    Periode: 1 - {new Date().getDate()} {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+                
+                <div className="flex items-center space-x-1 text-xs bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                  <svg className="w-3 h-3 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-amber-700 font-medium">Hari kerja saja (Kecuali Minggu & libur nasional)</span>
+                </div>
               </div>
             </div>
 
@@ -439,10 +455,51 @@ export default function AdminPage() {
                 const currentYear = today.getFullYear()
                 const currentDay = today.getDate()
                 
-                // Buat array tanggal dari tanggal 1 sampai hari ini
-                const daysInMonth = []
+                // Daftar tanggal merah nasional Indonesia 2025 (format: MM-DD)
+                const nationalHolidays = [
+                  '01-01', // Tahun Baru
+                  '01-29', // Tahun Baru Imlek
+                  '03-14', // Hari Raya Nyepi
+                  '03-29', // Wafat Isa Almasih
+                  '04-09', // Isra Miraj
+                  '04-30', // Hari Raya Idul Fitri
+                  '05-01', // Hari Buruh
+                  '05-08', // Hari Raya Idul Fitri
+                  '05-29', // Kenaikan Isa Almasih
+                  '06-01', // Hari Lahir Pancasila
+                  '06-07', // Hari Raya Idul Adha
+                  '06-28', // Tahun Baru Islam
+                  '08-17', // Hari Kemerdekaan
+                  '09-07', // Maulid Nabi Muhammad SAW
+                  '12-25', // Hari Raya Natal
+                ]
+                
+                // Fungsi untuk cek apakah tanggal adalah hari kerja
+                const isWorkingDay = (dateString: string) => {
+                  const date = new Date(dateString)
+                  const dayOfWeek = date.getDay() // 0 = Minggu, 6 = Sabtu
+                  const monthDay = String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
+                  
+                  // Cek apakah Minggu (Sabtu adalah hari kerja di KSU KE)
+                  if (dayOfWeek === 0) {
+                    return false
+                  }
+                  
+                  // Cek apakah tanggal merah nasional
+                  if (nationalHolidays.includes(monthDay)) {
+                    return false
+                  }
+                  
+                  return true
+                }
+                
+                // Buat array tanggal hari kerja dari tanggal 1 sampai hari ini
+                const workingDays = []
                 for (let day = 1; day <= currentDay; day++) {
-                  daysInMonth.push(new Date(currentYear, currentMonth, day).toISOString().split('T')[0])
+                  const dateString = new Date(currentYear, currentMonth, day).toISOString().split('T')[0]
+                  if (isWorkingDay(dateString)) {
+                    workingDays.push(dateString)
+                  }
                 }
                 
                 // Group reports by user dan hitung statistik
@@ -461,7 +518,10 @@ export default function AdminPage() {
                     }
                   }
                   
-                  acc[userName].reportedDates.add(reportDate)
+                  // Hanya hitung laporan yang dibuat di hari kerja
+                  if (isWorkingDay(reportDate)) {
+                    acc[userName].reportedDates.add(reportDate)
+                  }
                   acc[userName].totalReports++
                   
                   if (!acc[userName].lastReportDate || reportDate > acc[userName].lastReportDate) {
@@ -471,18 +531,19 @@ export default function AdminPage() {
                   return acc
                 }, {} as Record<string, any>)
                 
-                // Hitung persentase untuk setiap user
+                // Hitung persentase untuk setiap user berdasarkan hari kerja
                 return Object.values(userStats).map((stat: any) => {
-                  const reportedCount = stat.reportedDates.size
-                  const percentage = Math.round((reportedCount / daysInMonth.length) * 100)
-                  const missingDays = daysInMonth.length - reportedCount
+                  const reportedWorkingDays = stat.reportedDates.size
+                  const totalWorkingDays = workingDays.length
+                  const percentage = totalWorkingDays > 0 ? Math.round((reportedWorkingDays / totalWorkingDays) * 100) : 0
+                  const missingWorkingDays = totalWorkingDays - reportedWorkingDays
                   
                   return {
                     ...stat,
-                    reportedDays: reportedCount,
-                    totalExpectedDays: daysInMonth.length,
+                    reportedDays: reportedWorkingDays,
+                    totalExpectedDays: totalWorkingDays,
                     percentage,
-                    missingDays,
+                    missingDays: missingWorkingDays,
                     status: percentage === 100 ? 'complete' : percentage >= 80 ? 'good' : percentage >= 60 ? 'warning' : 'poor'
                   }
                 }).sort((a, b) => b.percentage - a.percentage)
@@ -492,186 +553,322 @@ export default function AdminPage() {
               
               return (
                 <>
-                  {/* Overall Statistics */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                  {/* Statistics Overview Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
+                    {/* Total Users */}
+                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm font-medium text-blue-900 mb-1">Total User</p>
+                          <p className="text-lg sm:text-xl font-bold text-blue-700">{userStats.length}</p>
+                        </div>
+                        <div className="p-2 bg-blue-200 rounded-lg">
+                          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-blue-900">Total User Aktif</p>
-                          <p className="text-lg font-semibold text-blue-700">{userStats.length}</p>
-                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    {/* Complete (100%) */}
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-100 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm font-medium text-green-900 mb-1">Lengkap</p>
+                          <div className="flex items-center space-x-1">
+                            <p className="text-lg sm:text-xl font-bold text-green-700">
+                              {userStats.filter((stat: any) => stat.percentage === 100).length}
+                            </p>
+                            <span className="text-xs text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">100%</span>
+                          </div>
+                        </div>
+                        <div className="p-2 bg-green-200 rounded-lg">
+                          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-green-900">User Lengkap (100%)</p>
-                          <p className="text-lg font-semibold text-green-700">
-                            {userStats.filter((stat: any) => stat.percentage === 100).length}
-                          </p>
+                      </div>
+                    </div>
+
+                    {/* Good (80%+) */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-100 p-4 rounded-xl border border-blue-300 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm font-medium text-blue-900 mb-1">Baik</p>
+                          <div className="flex items-center space-x-1">
+                            <p className="text-lg sm:text-xl font-bold text-blue-700">
+                              {userStats.filter((stat: any) => stat.percentage >= 80 && stat.percentage < 100).length}
+                            </p>
+                            <span className="text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">80%+</span>
+                          </div>
+                        </div>
+                        <div className="p-2 bg-blue-200 rounded-lg">
+                          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                    {/* Warning (60-79%) */}
+                    <div className="bg-gradient-to-r from-yellow-50 to-orange-100 p-4 rounded-xl border border-yellow-300 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm font-medium text-yellow-900 mb-1">Perhatian</p>
+                          <div className="flex items-center space-x-1">
+                            <p className="text-lg sm:text-xl font-bold text-yellow-700">
+                              {userStats.filter((stat: any) => stat.percentage >= 60 && stat.percentage < 80).length}
+                            </p>
+                            <span className="text-xs text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded-full">60-79%</span>
+                          </div>
+                        </div>
+                        <div className="p-2 bg-yellow-200 rounded-lg">
+                          <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-yellow-900">Perlu Perhatian</p>
-                          <p className="text-lg font-semibold text-yellow-700">
-                            {userStats.filter((stat: any) => stat.percentage < 80).length}
-                          </p>
+                      </div>
+                    </div>
+
+                    {/* Poor (<60%) */}
+                    <div className="bg-gradient-to-r from-red-50 to-pink-100 p-4 rounded-xl border border-red-300 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm font-medium text-red-900 mb-1">Perlu Tindakan</p>
+                          <div className="flex items-center space-x-1">
+                            <p className="text-lg sm:text-xl font-bold text-red-700">
+                              {userStats.filter((stat: any) => stat.percentage < 60).length}
+                            </p>
+                            <span className="text-xs text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full">&lt;60%</span>
+                          </div>
+                        </div>
+                        <div className="p-2 bg-red-200 rounded-lg">
+                          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                    {/* Average */}
+                    <div className="bg-gradient-to-r from-purple-50 to-indigo-100 p-4 rounded-xl border border-purple-300 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm font-medium text-purple-900 mb-1">Rata-rata</p>
+                          <div className="flex items-center space-x-1">
+                            <p className="text-lg sm:text-xl font-bold text-purple-700">
+                              {userStats.length > 0 ? Math.round(userStats.reduce((acc: number, stat: any) => acc + stat.percentage, 0) / userStats.length) : 0}%
+                            </p>
+                            <span className="text-xs text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded-full">Kepatuhan</span>
+                          </div>
+                        </div>
+                        <div className="p-2 bg-purple-200 rounded-lg">
+                          <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
                             <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
                           </svg>
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-purple-900">Rata-rata Kepatuhan</p>
-                          <p className="text-lg font-semibold text-purple-700">
-                            {userStats.length > 0 ? Math.round(userStats.reduce((acc: number, stat: any) => acc + stat.percentage, 0) / userStats.length) : 0}%
-                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* User Performance Table */}
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Progress
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Laporan
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Terakhir Input
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {userStats.map((stat: any) => (
-                          <tr key={stat.name} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0 h-8 w-8">
-                                  <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center">
-                                    <span className="text-white text-sm font-medium">
-                                      {stat.name.charAt(0).toUpperCase()}
-                                    </span>
+                  <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                      <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
+                        <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Detail Performa User</span>
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Rincian tingkat kepatuhan setiap user dalam mengisi laporan harian
+                      </p>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              User & Informasi
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Progress & Presentase
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Statistik Laporan
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Terakhir Input
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {userStats.map((stat: any, index: number) => (
+                            <tr key={stat.name} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
+                              {/* User Info */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center space-x-3">
+                                  <div className="flex-shrink-0">
+                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                                      stat.percentage === 100 ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
+                                      stat.percentage >= 80 ? 'bg-gradient-to-r from-blue-400 to-indigo-500' :
+                                      stat.percentage >= 60 ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
+                                      'bg-gradient-to-r from-red-400 to-pink-500'
+                                    }`}>
+                                      <span className="text-sm">
+                                        {stat.name.split(' ').map((n: string) => n.charAt(0)).join('').toUpperCase().slice(0, 2)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {stat.name}
+                                    </div>
+                                    <div className="text-xs text-gray-500 flex items-center space-x-1">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                                      </svg>
+                                      <span>{stat.email}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-400 mt-1">
+                                      Role: {stat.role}
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="ml-3">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {stat.name}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {stat.email}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between text-xs mb-1">
-                                    <span className="font-medium text-gray-700">{stat.percentage}%</span>
-                                    <span className="text-gray-500">
-                                      {stat.reportedDays}/{stat.totalExpectedDays}
+                              </td>
+                              
+                              {/* Progress */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="font-semibold text-gray-900">{stat.percentage}%</span>
+                                    <span className="text-gray-500 text-xs">
+                                      {stat.reportedDays}/{stat.totalExpectedDays} hari
                                     </span>
                                   </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div className="w-full bg-gray-200 rounded-full h-2.5">
                                     <div 
-                                      className={`h-2 rounded-full transition-all duration-300 ${
-                                        stat.percentage === 100 ? 'bg-green-500' :
-                                        stat.percentage >= 80 ? 'bg-blue-500' :
-                                        stat.percentage >= 60 ? 'bg-yellow-500' :
-                                        'bg-red-500'
+                                      className={`h-2.5 rounded-full transition-all duration-500 ease-out ${
+                                        stat.percentage === 100 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                                        stat.percentage >= 80 ? 'bg-gradient-to-r from-blue-400 to-blue-600' :
+                                        stat.percentage >= 60 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                                        'bg-gradient-to-r from-red-400 to-red-600'
                                       }`}
                                       style={{ width: `${stat.percentage}%` }}
                                     ></div>
                                   </div>
+                                  {stat.percentage < 100 && (
+                                    <div className="text-xs text-gray-500">
+                                      Target: 100% • Kurang: {100 - stat.percentage}%
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="text-xs text-gray-600 ml-2 min-w-[60px]">
-                                  {stat.percentage}%
+                              </td>
+                              
+                              {/* Report Stats */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="space-y-1">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium text-gray-900">{stat.totalReports}</span>
+                                    <span className="text-xs text-gray-500">Total laporan</span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium text-green-600">{stat.reportedDays}</span>
+                                    <span className="text-xs text-gray-500">Hari dilaporkan</span>
+                                  </div>
+                                  {stat.missingDays > 0 && (
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-sm font-medium text-red-600">{stat.missingDays}</span>
+                                      <span className="text-xs text-red-500">Hari terlewat</span>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <div className="flex flex-col">
-                                <span className="font-medium">{stat.totalReports} laporan</span>
-                                {stat.missingDays > 0 && (
-                                  <span className="text-xs text-red-600">
-                                    Kurang {stat.missingDays} hari
+                              </td>
+                              
+                              {/* Status Badge */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex flex-col space-y-1">
+                                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                    stat.status === 'complete' 
+                                      ? 'bg-green-100 text-green-800 border border-green-200'
+                                      : stat.status === 'good'
+                                      ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                      : stat.status === 'warning'
+                                      ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                                      : 'bg-red-100 text-red-800 border border-red-200'
+                                  }`}>
+                                    {stat.status === 'complete' && '✅ Sempurna'}
+                                    {stat.status === 'good' && '👍 Baik Sekali'}
+                                    {stat.status === 'warning' && '⚠️ Perlu Perhatian'}
+                                    {stat.status === 'poor' && '🚨 Perlu Tindakan'}
                                   </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                stat.status === 'complete' 
-                                  ? 'bg-green-100 text-green-800'
-                                  : stat.status === 'good'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : stat.status === 'warning'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {stat.status === 'complete' && '✓ Lengkap'}
-                                {stat.status === 'good' && '👍 Baik'}
-                                {stat.status === 'warning' && '⚠️ Perhatian'}
-                                {stat.status === 'poor' && '⚡ Perlu Tindakan'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {stat.lastReportDate ? 
-                                new Date(stat.lastReportDate).toLocaleDateString('id-ID') 
-                                : 'Belum ada laporan'
-                              }
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                                  <div className="text-xs text-gray-500 text-center">
+                                    Ranking #{index + 1}
+                                  </div>
+                                </div>
+                              </td>
+                              
+                              {/* Last Report */}
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div className="space-y-1">
+                                  {stat.lastReportDate ? (
+                                    <>
+                                      <div className="font-medium text-gray-900">
+                                        {new Date(stat.lastReportDate).toLocaleDateString('id-ID', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric'
+                                        })}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {new Date(stat.lastReportDate).toLocaleDateString('id-ID', {
+                                          weekday: 'long'
+                                        })}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="text-red-500 font-medium">
+                                      Belum ada laporan
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
+                  {/* Empty State */}
                   {userStats.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Belum ada data laporan untuk bulan ini
+                    <div className="text-center py-12">
+                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 mb-4">
+                        <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">Belum ada data laporan</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Belum ada laporan aktivitas yang masuk untuk bulan ini.
+                      </p>
+                      <div className="mt-4">
+                        <button
+                          onClick={loadReports}
+                          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                          </svg>
+                          Refresh Data
+                        </button>
+                      </div>
                     </div>
                   )}
                 </>
