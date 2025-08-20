@@ -809,7 +809,58 @@ export default function DashboardPage() {
                           {index + 1}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(report.date).toLocaleDateString('id-ID')}
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {(() => {
+                                try {
+                                  // Parse tanggal dengan berbagai format yang mungkin
+                                  let dateObj;
+                                  if (report.date.includes('T')) {
+                                    dateObj = new Date(report.date);
+                                  } else {
+                                    dateObj = new Date(report.date + 'T00:00:00');
+                                  }
+                                  
+                                  // Validasi apakah tanggal valid
+                                  if (isNaN(dateObj.getTime())) {
+                                    return report.date; // Fallback ke string asli
+                                  }
+                                  
+                                  return dateObj.toLocaleDateString('id-ID', {
+                                    weekday: 'long',
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    timeZone: 'Asia/Jakarta'
+                                  });
+                                } catch (error) {
+                                  return report.date; // Fallback jika error
+                                }
+                              })()}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {(() => {
+                                try {
+                                  let dateObj;
+                                  if (report.date.includes('T')) {
+                                    dateObj = new Date(report.date);
+                                  } else {
+                                    dateObj = new Date(report.date + 'T00:00:00');
+                                  }
+                                  
+                                  if (isNaN(dateObj.getTime())) {
+                                    return report.date;
+                                  }
+                                  
+                                  return dateObj.toLocaleDateString('id-ID', {
+                                    timeZone: 'Asia/Jakarta'
+                                  });
+                                } catch (error) {
+                                  return report.date;
+                                }
+                              })()}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div 
