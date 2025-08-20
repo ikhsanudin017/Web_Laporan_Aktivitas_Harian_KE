@@ -17,6 +17,7 @@ model User {
   name        String
   password    String
   role        UserRole
+  whatsapp    String?  // WhatsApp number field (optional)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
