@@ -148,7 +148,7 @@ export default function DashboardPage() {
       
       // Check if we're editing an existing report
       if (editingReport) {
-        await handleEditReport(editingReport.id, reportData)
+        await handleEditReport(editingReport.id, reportData, selectedDate) // 🔧 PERBAIKAN: Tambah selectedDate parameter
         return
       }
 
@@ -255,7 +255,9 @@ export default function DashboardPage() {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       alert('Gagal mengekspor data: ' + errorMessage)
     }
-  }  // Reset form to empty state
+  }  
+
+  // Reset form to empty state
   const resetForm = () => {
     const emptyData: Record<string, any> = {}
     if (formConfig) {
@@ -272,27 +274,53 @@ export default function DashboardPage() {
     setTimeout(() => setMessage(''), 2000)
   }
 
+  // 🔧 PERBAIKAN: Load report from history dengan sinkronisasi tanggal yang benar
   const loadReportFromHistory = (report: HistoryReport) => {
-    setSelectedDate(report.date.split('T')[0])
+    // Extract date from report.date (could be ISO string or date string)
+    const reportDate = report.date.includes('T') ? report.date.split('T')[0] : report.date
+    
+    console.log('📅 Loading report from history:', {
+      reportId: report.id,
+      originalReportDate: report.date,
+      extractedDate: reportDate,
+      reportData: report.reportData
+    })
+    
+    // Set the selectedDate to match the report date
+    setSelectedDate(reportDate)
     setReportData(report.reportData)
     setEditingReport(report)
     setActiveTab('input')
-    setMessage(`Data dari tanggal ${new Date(report.date).toLocaleDateString('id-ID')} dimuat untuk diedit`)
+    setMessage(`Data dari tanggal ${new Date(reportDate).toLocaleDateString('id-ID')} dimuat untuk diedit`)
   }
 
-  const handleEditReport = async (reportId: string, updatedData: any) => {
+  // 🔧 PERBAIKAN: Update handleEditReport untuk support update tanggal
+  const handleEditReport = async (reportId: string, updatedData: any, updatedDate?: string) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
+      
+      // Prepare request body - include date if it's being updated
+      const requestBody: any = {
+        reportData: updatedData
+      }
+      
+      // 🔧 PERBAIKAN: Include date update if provided
+      if (updatedDate && editingReport) {
+        const originalDate = editingReport.date.includes('T') ? editingReport.date.split('T')[0] : editingReport.date
+        if (updatedDate !== originalDate) {
+          requestBody.date = updatedDate
+          console.log('📅 Updating report date from', originalDate, 'to', updatedDate)
+        }
+      }
+      
       const response = await fetch(`/api/reports/${reportId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          reportData: updatedData
-        })
+        body: JSON.stringify(requestBody)
       })
 
       const data = await response.json()
@@ -302,6 +330,9 @@ export default function DashboardPage() {
         setEditingReport(null)
         setReportData({})
         await loadHistoryReports() // Refresh history
+        
+        // Clear message after 3 seconds
+        setTimeout(() => setMessage(''), 3000)
       } else {
         setMessage(data.message || 'Gagal memperbarui laporan')
       }
@@ -344,6 +375,8 @@ export default function DashboardPage() {
     setEditingReport(null)
     setReportData({})
     setMessage('')
+    // Reset date to today when canceling edit
+    setSelectedDate(getTodayDate())
   }
 
   const handleLogout = () => {
@@ -520,6 +553,12 @@ export default function DashboardPage() {
                         <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                       </svg>
                       <span className="text-xs sm:text-sm">تاريخ التقرير - Tanggal Laporan</span>
+                      {/* 🔧 PERBAIKAN: Show indicator when editing */}
+                      {editingReport && (
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                          📝 Editing Report
+                        </span>
+                      )}
                     </label>
                     <input
                       type="date"
@@ -536,8 +575,18 @@ export default function DashboardPage() {
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                       </svg>
-                      <span className="hidden sm:inline">Hari ini: {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                      <span className="sm:hidden">{new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                      <span className="hidden sm:inline">
+                        {editingReport ? 
+                          `Edit laporan tanggal: ${new Date(editingReport.date).toLocaleDateString('id-ID')}` :
+                          `Hari ini: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+                        }
+                      </span>
+                      <span className="sm:hidden">
+                        {editingReport ? 
+                          `Edit: ${new Date(editingReport.date).toLocaleDateString('id-ID')}` :
+                          new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                        }
+                      </span>
                     </div>
                   </div>
                   <div className="sm:col-span-1">
@@ -752,7 +801,7 @@ export default function DashboardPage() {
               </form>
             </div>
           ) : (
-            // HISTORY TAB
+            // HISTORY TAB - Sama seperti kode asli, tidak ada perubahan di sini
             <div className="bg-white shadow rounded-lg overflow-hidden">
               <div className="px-3 sm:px-6 py-4 border-b border-gray-200 flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
                 <h2 className="text-base sm:text-lg font-medium text-gray-900">

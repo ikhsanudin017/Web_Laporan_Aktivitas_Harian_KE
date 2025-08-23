@@ -73,7 +73,9 @@ export async function PUT(
       isAdmin = user?.role === 'ADMIN'
     }
 
-    const { reportData } = await request.json()
+    // 🔧 PERBAIKAN: Parse request body dengan support untuk update tanggal
+    const requestBody = await request.json()
+    const { reportData, date } = requestBody
 
     if (!reportData) {
       return NextResponse.json(
@@ -102,13 +104,31 @@ export async function PUT(
       )
     }
 
+    // 🔧 PERBAIKAN: Prepare update data dengan dukungan tanggal
+    const updateData: any = {
+      reportData,
+      updatedAt: new Date()
+    }
+
+    // 🔧 PERBAIKAN: Include date update jika ada perubahan tanggal
+    if (date) {
+      const newDate = new Date(date)
+      const existingDate = new Date(existingReport.date)
+      
+      // Compare dates (ignore time part)
+      const newDateStr = newDate.toISOString().split('T')[0]
+      const existingDateStr = existingDate.toISOString().split('T')[0]
+      
+      if (newDateStr !== existingDateStr) {
+        updateData.date = newDate
+        console.log(`📅 Updating report date from ${existingDateStr} to ${newDateStr}`)
+      }
+    }
+
     // Update the report
     const updatedReport = await prisma.dailyReport.update({
       where: { id: params.id },
-      data: {
-        reportData,
-        updatedAt: new Date()
-      },
+      data: updateData,
       include: {
         user: {
           select: {
@@ -120,15 +140,28 @@ export async function PUT(
       }
     })
 
+    console.log(`✅ Report ${params.id} updated successfully`)
+    if (date) {
+      console.log(`📅 Date updated: ${updateData.date ? 'Yes' : 'No'}`)
+    }
+
     return NextResponse.json({
       message: 'Report berhasil diperbarui',
-      report: updatedReport
+      report: {
+        ...updatedReport,
+        date: updatedReport.date.toISOString(),
+        createdAt: updatedReport.createdAt.toISOString(),
+        updatedAt: updatedReport.updatedAt.toISOString()
+      }
     })
 
   } catch (error) {
     console.error('Update report error:', error)
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { 
+        message: 'Internal server error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
