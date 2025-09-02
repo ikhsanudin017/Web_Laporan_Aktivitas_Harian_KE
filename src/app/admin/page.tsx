@@ -520,7 +520,7 @@ export default function AdminPage() {
                 }
                 
                 // Buat array tanggal hari kerja dalam rentang yang dipilih, up to calculationEndDate
-                const workingDays = []
+                const workingDays: Date[] = []
                 let currentDate = new Date(start)
                 while (currentDate <= calculationEndDate) {
                   if (isWorkingDay(currentDate)) {
