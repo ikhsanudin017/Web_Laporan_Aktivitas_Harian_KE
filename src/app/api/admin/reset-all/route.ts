@@ -39,11 +39,21 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete all daily reports
-    const result = await prisma.dailyReport.deleteMany({});
+    // Get the first day of the current month
+    const now = new Date();
+    const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Delete reports from previous months
+    const result = await prisma.dailyReport.deleteMany({
+      where: {
+        date: {
+          lt: firstDayOfCurrentMonth
+        }
+      }
+    });
 
     return NextResponse.json({
-      message: 'Semua data aktivitas harian berhasil dihapus',
+      message: `Berhasil menghapus data dari bulan-bulan sebelumnya. Laporan bulan ini tidak tersentuh.`,
       deletedCount: result.count
     });
 

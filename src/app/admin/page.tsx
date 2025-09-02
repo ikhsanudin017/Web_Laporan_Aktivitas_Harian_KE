@@ -87,16 +87,32 @@ export default function AdminPage() {
     }
 
     setUser(parsedUser)
-    loadReports()
+
+    // Set default date range to current month
+    const today = new Date()
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    
+    const formattedFirstDay = firstDay.toISOString().split('T')[0]
+    const formattedLastDay = lastDay.toISOString().split('T')[0]
+
+    setStartDate(formattedFirstDay)
+    setEndDate(formattedLastDay)
+
+    // Initial load with current month's data
+    loadReports(formattedFirstDay, formattedLastDay)
+
   }, [router])
 
-  const loadReports = async () => {
+  const loadReports = async (start?: string, end?: string) => {
     try {
       const token = localStorage.getItem('token')
-      let url = '/api/admin/reports'
+      const effectiveStartDate = start || startDate
+      const effectiveEndDate = end || endDate
       
-      if (startDate && endDate) {
-        url += `?startDate=${startDate}&endDate=${endDate}`
+      let url = '/api/admin/reports'
+      if (effectiveStartDate && effectiveEndDate) {
+        url += `?startDate=${effectiveStartDate}&endDate=${effectiveEndDate}`
       }
 
       const response = await fetch(url, {
@@ -108,9 +124,14 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json()
         setReports(data.reports)
+      } else {
+        // Handle error response
+        console.error('Failed to load reports:', response.statusText)
+        setReports([]) // Clear reports on error
       }
     } catch (error) {
       console.error('Error loading reports:', error)
+      setReports([]) // Clear reports on network error
     } finally {
       setLoading(false)
     }
@@ -185,13 +206,13 @@ export default function AdminPage() {
 
   const resetAllData = async () => {
     const confirmReset = window.confirm(
-      'PERINGATAN: Ini akan menghapus SEMUA data aktivitas harian dari semua user. Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin?'
+      'PERINGATAN: Ini akan menghapus SEMUA data aktivitas harian dari BULAN-BULAN SEBELUMNYA. Data bulan ini TIDAK akan terhapus. Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin?'
     )
     
     if (!confirmReset) return
 
     const confirmAgain = window.confirm(
-      'Konfirmasi sekali lagi: Anda akan menghapus SEMUA laporan aktivitas harian. Yakin melanjutkan?'
+      'Konfirmasi sekali lagi: Anda akan menghapus semua laporan dari bulan-bulan sebelumnya. Yakin melanjutkan?'
     )
     
     if (!confirmAgain) return
@@ -209,7 +230,7 @@ export default function AdminPage() {
       const data = await response.json()
 
       if (response.ok) {
-        alert(`Berhasil menghapus ${data.deletedCount} laporan aktivitas`)
+        alert(`${data.message} (${data.deletedCount} laporan dihapus)`)
         loadReports() // Refresh data
       } else {
         alert(data.error || 'Gagal menghapus data')
@@ -434,7 +455,7 @@ export default function AdminPage() {
                     <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                   </svg>
                   <span className="font-medium">
-                    Periode: 1 - {new Date().getDate()} {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                    Periode: {startDate && endDate ? `${new Date(startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })} - ${new Date(endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Semua Waktu'}
                   </span>
                 </div>
                 
@@ -450,11 +471,17 @@ export default function AdminPage() {
             {(() => {
               // Fungsi untuk menghitung statistik monitoring
               const calculateUserStats = () => {
+                if (!startDate || !endDate) {
+                  return []
+                }
+
+                const start = new Date(startDate)
+                const end = new Date(endDate)
                 const today = new Date()
-                const currentMonth = today.getMonth()
-                const currentYear = today.getFullYear()
-                const currentDay = today.getDate()
-                
+
+                // The calculation should only go up to today, or the selected end date, whichever is earlier.
+                const calculationEndDate = today < end ? today : end
+
                 // Daftar tanggal merah nasional Indonesia 2025 (format: MM-DD)
                 const nationalHolidays = [
                   '01-01', // Tahun Baru
@@ -475,8 +502,7 @@ export default function AdminPage() {
                 ]
                 
                 // Fungsi untuk cek apakah tanggal adalah hari kerja
-                const isWorkingDay = (dateString: string) => {
-                  const date = new Date(dateString)
+                const isWorkingDay = (date: Date) => {
                   const dayOfWeek = date.getDay() // 0 = Minggu, 6 = Sabtu
                   const monthDay = String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
                   
@@ -493,19 +519,20 @@ export default function AdminPage() {
                   return true
                 }
                 
-                // Buat array tanggal hari kerja dari tanggal 1 sampai hari ini
+                // Buat array tanggal hari kerja dalam rentang yang dipilih, up to calculationEndDate
                 const workingDays = []
-                for (let day = 1; day <= currentDay; day++) {
-                  const dateString = new Date(currentYear, currentMonth, day).toISOString().split('T')[0]
-                  if (isWorkingDay(dateString)) {
-                    workingDays.push(dateString)
+                let currentDate = new Date(start)
+                while (currentDate <= calculationEndDate) {
+                  if (isWorkingDay(currentDate)) {
+                    workingDays.push(currentDate.toISOString().split('T')[0])
                   }
+                  currentDate.setDate(currentDate.getDate() + 1)
                 }
                 
                 // Group reports by user dan hitung statistik
                 const userStats = reports.reduce((acc, report) => {
                   const userName = report.user.name
-                  const reportDate = report.date
+                  const reportDate = report.date.split('T')[0] // Ensure date format consistency
                   
                   if (!acc[userName]) {
                     acc[userName] = {
@@ -518,8 +545,8 @@ export default function AdminPage() {
                     }
                   }
                   
-                  // Hanya hitung laporan yang dibuat di hari kerja
-                  if (isWorkingDay(reportDate)) {
+                  // Hanya hitung laporan yang dibuat di hari kerja dalam rentang yang dipilih
+                  if (workingDays.includes(reportDate)) {
                     acc[userName].reportedDates.add(reportDate)
                   }
                   acc[userName].totalReports++
