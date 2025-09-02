@@ -524,7 +524,7 @@ export default function AdminPage() {
                 let currentDate = new Date(start)
                 while (currentDate <= calculationEndDate) {
                   if (isWorkingDay(currentDate)) {
-                    workingDays.push(currentDate.toISOString().split('T')[0])
+                    workingDays.push(currentDate)
                   }
                   currentDate.setDate(currentDate.getDate() + 1)
                 }
