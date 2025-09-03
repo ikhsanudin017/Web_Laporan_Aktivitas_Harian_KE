@@ -520,11 +520,11 @@ export default function AdminPage() {
                 }
                 
                 // Buat array tanggal hari kerja dalam rentang yang dipilih, up to calculationEndDate
-                const workingDays: Date[] = []
+                const workingDays: string[] = []
                 let currentDate = new Date(start)
                 while (currentDate <= calculationEndDate) {
                   if (isWorkingDay(currentDate)) {
-                    workingDays.push(currentDate)
+                    workingDays.push(currentDate.toISOString().split('T')[0])
                   }
                   currentDate.setDate(currentDate.getDate() + 1)
                 }
@@ -539,9 +539,9 @@ export default function AdminPage() {
                       name: userName,
                       email: report.user.email,
                       role: report.user.role,
-                      reportedDates: new Set(),
+                      reportedDates: new Set<string>(),
                       totalReports: 0,
-                      lastReportDate: null
+                      lastReportDate: null as string | null
                     }
                   }
                   
@@ -886,10 +886,10 @@ export default function AdminPage() {
                         Belum ada laporan aktivitas yang masuk untuk bulan ini.
                       </p>
                       <div className="mt-4">
-                        <button
-                          onClick={loadReports}
-                          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                        >
+                      <button
+                        onClick={() => loadReports()}
+                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                      >
                           <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                           </svg>
