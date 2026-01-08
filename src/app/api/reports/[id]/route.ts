@@ -32,7 +32,8 @@ export async function PUT(
         'sayudi@ksuke.com',     // index 5
         'yuli@ksuke.com',       // index 6
         'prasetyo@ksuke.com',   // index 7
-        'diah@ksuke.com'        // index 8
+        'diah@ksuke.com',       // index 8
+        'eka@ksuke.com'         // index 9
       ]
       
       const userEmail = userEmails[userIndex - 1]
@@ -197,7 +198,8 @@ export async function DELETE(
         'sayudi@ksuke.com',     // index 5
         'yuli@ksuke.com',       // index 6
         'prasetyo@ksuke.com',   // index 7
-        'diah@ksuke.com'        // index 8
+        'diah@ksuke.com',       // index 8
+        'eka@ksuke.com'         // index 9
       ]
       
       const userEmail = userEmails[userIndex - 1]

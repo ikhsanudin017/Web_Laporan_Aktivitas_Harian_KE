@@ -68,6 +68,7 @@ Aplikasi web untuk menggantikan sistem laporan aktivitas harian menggunakan Next
 #### Complex Forms:
 - **Bapak Arwan**: Funding B2B/Personal, Marketing B2B/Personal, Angsuran, Survey
 - **Bapak Diah**: Funding B2B/Personal, Marketing B2B/Personal, Angsuran, Survey
+- **Mbak Eka**: Funding B2B/Personal, Marketing B2B/Personal, Angsuran, Survey
 
 #### Advanced Forms:
 - **Bapak Prasetyo**: KTP, ADR, QUR'AN, WAKAF, GOTA, B2B, Maintenance
@@ -175,6 +176,7 @@ Setelah menjalankan seed, berikut adalah akun yang tersedia:
 | winarno@ksuke.com | 123456 | BPK_WINARNO | Bpk Winarno |
 | arwan@ksuke.com | 123456 | BAPAK_ARWAN | Bapak Arwan |
 | diah@ksuke.com | 123456 | BAPAK_DIAH | Bapak Diah Supriyanto |
+| eka@ksuke.com | 123456 | MBAK_EKA | Mbak Eka |
 | prasetyo@ksuke.com | 123456 | BAPAK_PRASETYO | Bapak Prasetyo Dani |
 | giyarto@ksuke.com | 123456 | BAPAK_GIYARTO | Bapak Giyarto |
 

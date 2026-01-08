@@ -182,6 +182,73 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
     ]
   },
 
+  MBAK_EKA: {
+    role: 'MBAK_EKA' as any,
+    title: 'Form Laporan Harian - Mbak Eka',
+    fields: [
+      {
+        name: 'angsuran',
+        label: 'Angsuran',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'fundingB2B',
+        label: 'Funding B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Funding'
+      },
+      {
+        name: 'fundingPersonal',
+        label: 'Funding Personal',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Funding'
+      },
+      {
+        name: 'marketingB2B',
+        label: 'Marketing B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Marketing'
+      },
+      {
+        name: 'marketingPersonal',
+        label: 'Marketing Personal',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Marketing'
+      },
+      {
+        name: 'survey',
+        label: 'Survey',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'keterangan',
+        label: 'Keterangan',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Keterangan tambahan...'
+      },
+      {
+        name: 'kegiatan',
+        label: 'Aktivitas Lainnya (*Selain yang ada pada tabel)',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Masukkan aktivitas lainnya...'
+      }
+    ]
+  },
+
   BAPAK_DIAH: {
     role: 'BAPAK_DIAH' as any,
     title: 'Form Laporan Harian - Bapak Diah Supriyanto',
@@ -284,20 +351,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
       {
         name: 'gota',
         label: 'GOTA',
-        type: 'dropdown-number',
-        required: false,
-        placeholder: '0'
-      },
-      {
-        name: 'b2b',
-        label: 'B2B',
-        type: 'dropdown-number',
-        required: false,
-        placeholder: '0'
-      },
-      {
-        name: 'maintenance',
-        label: 'Maintenance',
         type: 'dropdown-number',
         required: false,
         placeholder: '0'

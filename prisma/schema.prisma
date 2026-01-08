@@ -82,6 +82,7 @@ enum UserRole {
   BPK_WINARNO          // Medium: No, Tanggal, Angsuran, empty, Kegiatan, Survey, Keterangan
   BAPAK_ARWAN          // High: No, Tanggal, Funding (B2B/Personal), Marketing (B2B/Personal), Kegiatan, Angsuran, Survey, Keterangan
   BAPAK_DIAH           // High: No, Tanggal, Funding (B2B/Personal), Marketing (B2B/Personal), Kegiatan, Angsuran, Survey, Keterangan
+  MBAK_EKA             // High: No, Tanggal, Funding (B2B/Personal), Marketing (B2B/Personal), Kegiatan, Angsuran, Survey, Keterangan
   BAPAK_PRASETYO       // Complex: No, Tanggal, KTP, ADR, QUR'AN, WAKAF, GOTA, B2B, Maintenance, Lain-Lain
   BAPAK_GIYARTO        // Complex: No, Tanggal, KTP, ADR, QUR'AN, WAKAF, GOTA, B2B, Maintenance, Lain-Lain
 }

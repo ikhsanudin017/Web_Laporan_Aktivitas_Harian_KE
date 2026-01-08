@@ -49,17 +49,23 @@ async function main() {
         password: hashedPassword,
         role: 'BAPAK_ARWAN'
       },
-      {
-        email: 'diah@ksuke.com',
-        name: 'Bapak Diah Supriyanto',
-        password: hashedPassword,
-        role: 'BAPAK_DIAH'
-      },
-      {
-        email: 'prasetyo@ksuke.com',
-        name: 'Bapak Prasetyo Dani',
-        password: hashedPassword,
-        role: 'BAPAK_PRASETYO'
+    {
+      email: 'diah@ksuke.com',
+      name: 'Bapak Diah Supriyanto',
+      password: hashedPassword,
+      role: 'BAPAK_DIAH'
+    },
+    {
+      email: 'eka@ksuke.com',
+      name: 'Mbak Eka',
+      password: hashedPassword,
+      role: 'MBAK_EKA'
+    },
+    {
+      email: 'prasetyo@ksuke.com',
+      name: 'Bapak Prasetyo Dani',
+      password: hashedPassword,
+      role: 'BAPAK_PRASETYO'
       },
       {
         email: 'giyarto@ksuke.com',

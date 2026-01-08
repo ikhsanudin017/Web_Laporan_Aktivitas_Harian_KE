@@ -27,6 +27,7 @@ interface Report {
 }
 
 export default function AdminPage() {
+  const [expandedUsers, setExpandedUsers] = useState<Record<string, boolean>>({})
   const [user, setUser] = useState<User | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
@@ -942,17 +943,41 @@ export default function AdminPage() {
                   return acc
                 }, {} as Record<string, Report[]>)
 
-                return Object.entries(reportsByUser).map(([userName, userReports]) => (
+                return Object.entries(reportsByUser).map(([userName, userReports]) => {
+                  const isExpanded = expandedUsers[userName] ?? false
+                  return (
                   <div key={userName} className="mb-8">
                     {/* User Header */}
-                    <div className="bg-gray-100 px-6 py-3 border-b">
-                      <h3 className="text-md font-semibold text-gray-800">
-                        {userName} ({userReports.length} laporan)
-                      </h3>
+                    <div className="bg-gray-100 px-6 py-3 border-b flex items-center justify-between">
+                      <button
+                        type="button"
+                        className="flex items-center space-x-2 text-gray-800 hover:text-gray-900"
+                        onClick={() =>
+                          setExpandedUsers(prev => ({
+                            ...prev,
+                            [userName]: !isExpanded
+                          }))
+                        }
+                        aria-expanded={isExpanded}
+                        aria-controls={`reports-${userName}`}
+                      >
+                        <span
+                          className={`transition-transform duration-200 ${
+                            isExpanded ? 'rotate-90' : 'rotate-0'
+                          }`}
+                          aria-hidden="true"
+                        >
+                          ▶
+                        </span>
+                        <h3 className="text-md font-semibold">
+                          {userName} ({userReports.length} laporan)
+                        </h3>
+                      </button>
                     </div>
                     
                     {/* User Reports Table */}
-                    <table className="min-w-full divide-y divide-gray-200">
+                    {isExpanded && (
+                    <table id={`reports-${userName}`} className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1162,8 +1187,9 @@ export default function AdminPage() {
                         ))}
                       </tbody>
                     </table>
+                    )}
                   </div>
-                ))
+                )})
               })()}
               
               {reports.length === 0 && !loading && (

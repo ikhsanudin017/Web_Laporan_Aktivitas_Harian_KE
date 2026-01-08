@@ -53,6 +53,12 @@ async function main() {
       role: 'BAPAK_DIAH' as const
     },
     {
+      email: 'eka@ksuke.com',
+      name: 'Mbak Eka',
+      password: hashedPassword,
+      role: 'MBAK_EKA' as const
+    },
+    {
       email: 'prasetyo@ksuke.com',
       name: 'Bapak Prasetyo Dani',
       password: hashedPassword,
