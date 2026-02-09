@@ -38,6 +38,12 @@ export default function AdminPage() {
   const [editReportData, setEditReportData] = useState<any>({})
   const [currentTime, setCurrentTime] = useState(new Date())
   const router = useRouter()
+  const formatDateInput = (date: Date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
 
   // Fungsi untuk menampilkan waktu relatif (menggunakan currentTime untuk real-time update)
   const getRelativeTime = (dateString: string) => {
@@ -94,8 +100,8 @@ export default function AdminPage() {
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
     
-    const formattedFirstDay = firstDay.toISOString().split('T')[0]
-    const formattedLastDay = lastDay.toISOString().split('T')[0]
+    const formattedFirstDay = formatDateInput(firstDay)
+    const formattedLastDay = formatDateInput(lastDay)
 
     setStartDate(formattedFirstDay)
     setEndDate(formattedLastDay)
