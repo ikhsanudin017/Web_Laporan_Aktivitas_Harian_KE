@@ -35,10 +35,10 @@ async function main() {
       role: 'BAPAK_SAYUDI' as const
     },
     {
-      email: 'winarno@ksuke.com',
-      name: 'Bpk Winarno',
+      email: 'anggit@ksuke.com',
+      name: 'Mas Anggit',
       password: hashedPassword,
-      role: 'BPK_WINARNO' as const
+      role: 'MAS_ANGGIT' as const
     },
     {
       email: 'arwan@ksuke.com',

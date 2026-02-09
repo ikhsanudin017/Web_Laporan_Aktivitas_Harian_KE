@@ -80,9 +80,9 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
     ]
   },
 
-  BPK_WINARNO: {
-    role: 'BPK_WINARNO' as any,
-    title: 'Form Laporan Harian - Bpk Winarno',
+  MAS_ANGGIT: {
+    role: 'MAS_ANGGIT' as any,
+    title: 'Form Laporan Harian - Mas Anggit',
     fields: [
       {
         name: 'angsuran',

@@ -13,7 +13,7 @@ export interface DailyReportData {
   // Simple form fields (Ustadz Yuli, Bapak Toha)
   aktivitasHarian?: string
 
-  // Medium complexity fields (Bapak Sayudi, Bpk Winarno)
+  // Medium complexity fields (Bapak Sayudi, Mas Anggit)
   angsuran?: number
   kegiatan?: string
   fundingB2B?: number

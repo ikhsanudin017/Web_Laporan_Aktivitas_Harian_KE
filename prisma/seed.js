@@ -38,10 +38,10 @@ async function main() {
         role: 'BAPAK_SAYUDI'
       },
       {
-        email: 'winarno@ksuke.com',
-        name: 'Bpk Winarno',
+        email: 'anggit@ksuke.com',
+        name: 'Mas Anggit',
         password: hashedPassword,
-        role: 'BPK_WINARNO'
+        role: 'MAS_ANGGIT'
       },
       {
         email: 'arwan@ksuke.com',

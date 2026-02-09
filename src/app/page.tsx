@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   const users = [
     { id: 1, name: 'Bapak Arwan', email: 'arwan@ksuke.com', role: 'BAPAK_ARWAN' },
-    { id: 2, name: 'Bpk Winarno', email: 'winarno@ksuke.com', role: 'BPK_WINARNO' },
+    { id: 2, name: 'Mas Anggit', email: 'anggit@ksuke.com', role: 'MAS_ANGGIT' },
     { id: 3, name: 'Bapak Giyarto', email: 'giyarto@ksuke.com', role: 'BAPAK_GIYARTO' },
     { id: 4, name: 'Bapak Toha', email: 'toha@ksuke.com', role: 'BAPAK_TOHA' },
     { id: 5, name: 'Bapak Sayudi', email: 'sayudi@ksuke.com', role: 'BAPAK_SAYUDI' },
