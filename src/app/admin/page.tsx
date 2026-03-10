@@ -1159,8 +1159,11 @@ export default function AdminPage() {
                             <td className="px-6 py-4 text-sm text-gray-900">
                               <div className="max-w-xs overflow-hidden">
                                 {Object.entries(report.reportData || {}).map(([key, value]) => (
-                                  <div key={key} className="text-xs">
-                                    <span className="font-medium">{key}:</span> {String(value)}
+                                  <div key={key} className="text-xs mb-2">
+                                    <div className="font-medium text-gray-700">{key}</div>
+                                    <div className={typeof value === 'string' ? 'whitespace-pre-line text-gray-600' : 'text-gray-600'}>
+                                      {String(value)}
+                                    </div>
                                   </div>
                                 ))}
                               </div>

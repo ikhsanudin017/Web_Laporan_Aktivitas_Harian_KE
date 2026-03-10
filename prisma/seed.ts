@@ -8,6 +8,41 @@ async function main() {
   const hashedPassword = await bcrypt.hash('123456', 12)
   const adminPassword = await bcrypt.hash('12345', 12)
 
+  const currentAnggitUser = await prisma.user.findUnique({
+    where: { email: 'anggit@ksuke.com' }
+  })
+
+  const legacyMasAnggitUsers = await prisma.user.findMany({
+    where: {
+      role: 'MAS_ANGGIT',
+      email: {
+        not: 'anggit@ksuke.com'
+      }
+    }
+  })
+
+  for (const legacyMasAnggitUser of legacyMasAnggitUsers) {
+    if (currentAnggitUser) {
+      await prisma.dailyReport.updateMany({
+        where: { userId: legacyMasAnggitUser.id },
+        data: { userId: currentAnggitUser.id }
+      })
+
+      await prisma.user.delete({
+        where: { id: legacyMasAnggitUser.id }
+      })
+    } else {
+      await prisma.user.update({
+        where: { id: legacyMasAnggitUser.id },
+        data: {
+          email: 'anggit@ksuke.com',
+          name: 'Mas Anggit',
+          password: hashedPassword
+        }
+      })
+    }
+  }
+
   // Create users
   const users = [
     {

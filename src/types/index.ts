@@ -12,6 +12,7 @@ export interface User {
 export interface DailyReportData {
   // Simple form fields (Ustadz Yuli, Bapak Toha)
   aktivitasHarian?: string
+  timelineHarian?: string
 
   // Medium complexity fields (Bapak Sayudi, Mas Anggit)
   angsuran?: number

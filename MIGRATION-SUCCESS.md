@@ -16,7 +16,7 @@
 3. **Ustadz Yuli** (yuli@ksuke.com) - USTADZ_YULI
 4. **Bapak Toha** (toha@ksuke.com) - BAPAK_TOHA
 5. **Bapak Sayudi** (sayudi@ksuke.com) - BAPAK_SAYUDI
-6. **Bpk Winarno** (winarno@ksuke.com) - BPK_WINARNO
+6. **Mas Anggit** (anggit@ksuke.com) - MAS_ANGGIT
 7. **Bapak Arwan** (arwan@ksuke.com) - BAPAK_ARWAN
 8. **Bapak Diah Supriyanto** (diah@ksuke.com) - BAPAK_DIAH
 9. **Bapak Prasetyo Dani** (prasetyo@ksuke.com) - BAPAK_PRASETYO

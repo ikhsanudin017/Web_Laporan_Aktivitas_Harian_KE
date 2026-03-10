@@ -210,6 +210,35 @@ const getFieldLabel = (fieldName: string, userRole: string): string => {
   return field?.label || fieldName
 }
 
+const TEXTAREA_FIELDS = new Set([
+  'timelineHarian',
+  'aktivitasHarian',
+  'keterangan',
+  'kegiatan',
+  'lainLain'
+])
+
+const getColumnWidth = (fieldName: string, fieldLabel: string) => {
+  if (TEXTAREA_FIELDS.has(fieldName)) {
+    return 40
+  }
+
+  return Math.max(fieldLabel.length, 15)
+}
+
+const getAvailableFields = (reports: any[], userRole: string) => {
+  const configFields = FORM_CONFIGS[userRole]?.fields.map(field => field.name) || []
+  const reportFields = new Set<string>()
+
+  reports.forEach((report: any) => {
+    const reportData = report.reportData || {}
+    Object.keys(reportData).forEach(field => reportFields.add(field))
+  })
+
+  const extraFields = Array.from(reportFields).filter(field => !configFields.includes(field))
+  return [...configFields, ...extraFields]
+}
+
 // Helper function to format field value for display
 const formatFieldValue = (fieldName: string, value: any): string => {
   if (value === null || value === undefined) return ''
@@ -342,6 +371,8 @@ const createAdvancedUserSheet = (userName: string, reports: any[], title: string
     console.log(`📋 Using fallback fields:`, availableFields)
   }
 
+  availableFields = getAvailableFields(reports, userRole)
+
   // Prepare data for XLSX using simple approach
   const data: any[][] = []
   
@@ -455,7 +486,7 @@ const createAdvancedUserSheet = (userName: string, reports: any[], title: string
   // Add width for each field
   availableFields.forEach(fieldName => {
     const fieldLabel = getFieldLabel(fieldName, userRole)
-    const contentWidth = Math.max(fieldLabel.length, 15)
+    const contentWidth = getColumnWidth(fieldName, fieldLabel)
     colWidths.push({ wch: contentWidth })
   })
   

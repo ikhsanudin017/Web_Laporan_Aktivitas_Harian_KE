@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { getAuthenticatedRequestUser } from '@/lib/request-auth'
 
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params
+
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    
+
     if (!token) {
       return NextResponse.json(
         { message: 'Unauthorized' },
@@ -17,66 +18,16 @@ export async function PUT(
       )
     }
 
-    let userId: string
-    let isAdmin = false
-    
-    // Check if it's a mock token (for dropdown users)
-    if (token.startsWith('mock-token-')) {
-      const userIndex = parseInt(token.replace('mock-token-', ''))
-      
-      const userEmails = [
-        'arwan@ksuke.com',      // index 1
-        'winarno@ksuke.com',    // index 2
-        'giyarto@ksuke.com',    // index 3
-        'toha@ksuke.com',       // index 4
-        'sayudi@ksuke.com',     // index 5
-        'yuli@ksuke.com',       // index 6
-        'prasetyo@ksuke.com',   // index 7
-        'diah@ksuke.com',       // index 8
-        'eka@ksuke.com'         // index 9
-      ]
-      
-      const userEmail = userEmails[userIndex - 1]
-      if (!userEmail) {
-        return NextResponse.json(
-          { message: 'User tidak ditemukan' },
-          { status: 401 }
-        )
-      }
-      
-      const user = await prisma.user.findUnique({
-        where: { email: userEmail }
-      })
-      
-      if (!user) {
-        return NextResponse.json(
-          { message: 'User tidak ditemukan' },
-          { status: 401 }
-        )
-      }
-      
-      userId = user.id
-    } else {
-      // Verify JWT token (for admin)
-      const decoded = verifyToken(token)
-      if (!decoded) {
-        return NextResponse.json(
-          { message: 'Invalid token' },
-          { status: 401 }
-        )
-      }
-      userId = decoded.userId
-      
-      // Check if user is admin
-      const user = await prisma.user.findUnique({
-        where: { id: userId }
-      })
-      isAdmin = user?.role === 'ADMIN'
+    const authenticatedUser = await getAuthenticatedRequestUser(token)
+
+    if (!authenticatedUser) {
+      return NextResponse.json(
+        { message: 'User tidak ditemukan' },
+        { status: 401 }
+      )
     }
 
-    // 🔧 PERBAIKAN: Parse request body dengan support untuk update tanggal
-    const requestBody = await request.json()
-    const { reportData, date } = requestBody
+    const { reportData, date } = await request.json()
 
     if (!reportData) {
       return NextResponse.json(
@@ -85,7 +36,6 @@ export async function PUT(
       )
     }
 
-    // Check if report exists and user has permission to edit
     const existingReport = await prisma.dailyReport.findUnique({
       where: { id: params.id }
     })
@@ -97,36 +47,31 @@ export async function PUT(
       )
     }
 
-    // Users can only edit their own reports, admin can edit any report
-    if (!isAdmin && existingReport.userId !== userId) {
+    if (!authenticatedUser.isAdmin && existingReport.userId !== authenticatedUser.userId) {
       return NextResponse.json(
         { message: 'Tidak memiliki izin untuk mengedit laporan ini' },
         { status: 403 }
       )
     }
 
-    // 🔧 PERBAIKAN: Prepare update data dengan dukungan tanggal
-    const updateData: any = {
+    const updateData: {
+      reportData: any
+      updatedAt: Date
+      date?: Date
+    } = {
       reportData,
       updatedAt: new Date()
     }
 
-    // 🔧 PERBAIKAN: Include date update jika ada perubahan tanggal
     if (date) {
       const newDate = new Date(date)
       const existingDate = new Date(existingReport.date)
-      
-      // Compare dates (ignore time part)
-      const newDateStr = newDate.toISOString().split('T')[0]
-      const existingDateStr = existingDate.toISOString().split('T')[0]
-      
-      if (newDateStr !== existingDateStr) {
+
+      if (newDate.toISOString().split('T')[0] !== existingDate.toISOString().split('T')[0]) {
         updateData.date = newDate
-        console.log(`📅 Updating report date from ${existingDateStr} to ${newDateStr}`)
       }
     }
 
-    // Update the report
     const updatedReport = await prisma.dailyReport.update({
       where: { id: params.id },
       data: updateData,
@@ -141,11 +86,6 @@ export async function PUT(
       }
     })
 
-    console.log(`✅ Report ${params.id} updated successfully`)
-    if (date) {
-      console.log(`📅 Date updated: ${updateData.date ? 'Yes' : 'No'}`)
-    }
-
     return NextResponse.json({
       message: 'Report berhasil diperbarui',
       report: {
@@ -155,11 +95,10 @@ export async function PUT(
         updatedAt: updatedReport.updatedAt.toISOString()
       }
     })
-
   } catch (error) {
     console.error('Update report error:', error)
     return NextResponse.json(
-      { 
+      {
         message: 'Internal server error',
         error: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -173,9 +112,10 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params
+
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
-    
+
     if (!token) {
       return NextResponse.json(
         { message: 'Unauthorized' },
@@ -183,64 +123,15 @@ export async function DELETE(
       )
     }
 
-    let userId: string
-    let isAdmin = false
-    
-    // Check if it's a mock token (for dropdown users)
-    if (token.startsWith('mock-token-')) {
-      const userIndex = parseInt(token.replace('mock-token-', ''))
-      
-      const userEmails = [
-        'arwan@ksuke.com',      // index 1
-        'winarno@ksuke.com',    // index 2
-        'giyarto@ksuke.com',    // index 3
-        'toha@ksuke.com',       // index 4
-        'sayudi@ksuke.com',     // index 5
-        'yuli@ksuke.com',       // index 6
-        'prasetyo@ksuke.com',   // index 7
-        'diah@ksuke.com',       // index 8
-        'eka@ksuke.com'         // index 9
-      ]
-      
-      const userEmail = userEmails[userIndex - 1]
-      if (!userEmail) {
-        return NextResponse.json(
-          { message: 'User tidak ditemukan' },
-          { status: 401 }
-        )
-      }
-      
-      const user = await prisma.user.findUnique({
-        where: { email: userEmail }
-      })
-      
-      if (!user) {
-        return NextResponse.json(
-          { message: 'User tidak ditemukan' },
-          { status: 401 }
-        )
-      }
-      
-      userId = user.id
-    } else {
-      // Verify JWT token (for admin)
-      const decoded = verifyToken(token)
-      if (!decoded) {
-        return NextResponse.json(
-          { message: 'Invalid token' },
-          { status: 401 }
-        )
-      }
-      userId = decoded.userId
-      
-      // Check if user is admin
-      const user = await prisma.user.findUnique({
-        where: { id: userId }
-      })
-      isAdmin = user?.role === 'ADMIN'
+    const authenticatedUser = await getAuthenticatedRequestUser(token)
+
+    if (!authenticatedUser) {
+      return NextResponse.json(
+        { message: 'User tidak ditemukan' },
+        { status: 401 }
+      )
     }
 
-    // Check if report exists and user has permission to delete
     const existingReport = await prisma.dailyReport.findUnique({
       where: { id: params.id }
     })
@@ -252,15 +143,13 @@ export async function DELETE(
       )
     }
 
-    // Users can only delete their own reports, admin can delete any report
-    if (!isAdmin && existingReport.userId !== userId) {
+    if (!authenticatedUser.isAdmin && existingReport.userId !== authenticatedUser.userId) {
       return NextResponse.json(
         { message: 'Tidak memiliki izin untuk menghapus laporan ini' },
         { status: 403 }
       )
     }
 
-    // Delete the report
     await prisma.dailyReport.delete({
       where: { id: params.id }
     })
@@ -268,7 +157,6 @@ export async function DELETE(
     return NextResponse.json({
       message: 'Report berhasil dihapus'
     })
-
   } catch (error) {
     console.error('Delete report error:', error)
     return NextResponse.json(

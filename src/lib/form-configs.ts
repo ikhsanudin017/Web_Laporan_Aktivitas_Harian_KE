@@ -1,10 +1,36 @@
-import { FormConfig } from '@/types'
+import { FormConfig, FormField } from '@/types'
+
+const TIMELINE_FIELD: FormField = {
+  name: 'timelineHarian',
+  label: 'Keterangan Timeline Harian',
+  type: 'textarea',
+  required: false,
+  placeholder: 'Timeline harian hasil proses foto atau input manual...'
+}
+
+const withTimelineField = (fields: FormField[]): FormField[] => {
+  const nextFields = [...fields]
+
+  if (nextFields.some((field) => field.name === TIMELINE_FIELD.name)) {
+    return nextFields
+  }
+
+  const insertIndex = nextFields.findIndex((field) => field.name === 'keterangan')
+
+  if (insertIndex >= 0) {
+    nextFields.splice(insertIndex + 1, 0, { ...TIMELINE_FIELD })
+    return nextFields
+  }
+
+  nextFields.push({ ...TIMELINE_FIELD })
+  return nextFields
+}
 
 export const FORM_CONFIGS: Record<string, FormConfig> = {
   USTADZ_YULI: {
     role: 'USTADZ_YULI' as any,
     title: 'Form Laporan Harian - Ustadz Yuli',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'aktivitasHarian',
         label: 'Aktivitas Harian',
@@ -12,13 +38,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: true,
         placeholder: 'Masukkan aktivitas harian Anda...'
       }
-    ]
+    ])
   },
 
   BAPAK_TOHA: {
     role: 'BAPAK_TOHA' as any,
     title: 'Form Laporan Harian - Bapak Toha',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'aktivitasHarian',
         label: 'Aktivitas Harian',
@@ -26,13 +52,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: true,
         placeholder: 'Masukkan aktivitas harian Anda...'
       }
-    ]
+    ])
   },
 
   BAPAK_SAYUDI: {
     role: 'BAPAK_SAYUDI' as any,
     title: 'Form Laporan Harian - Bapak Sayudi',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'angsuran',
         label: 'Angsuran',
@@ -77,13 +103,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Masukkan aktivitas lainnya...'
       }
-    ]
+    ])
   },
 
   MAS_ANGGIT: {
     role: 'MAS_ANGGIT' as any,
     title: 'Form Laporan Harian - Mas Anggit',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'angsuran',
         label: 'Angsuran',
@@ -112,13 +138,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Masukkan aktivitas lainnya...'
       }
-    ]
+    ])
   },
 
   BAPAK_ARWAN: {
     role: 'BAPAK_ARWAN' as any,
     title: 'Form Laporan Harian - Bapak Arwan',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'angsuran',
         label: 'Angsuran',
@@ -179,13 +205,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Masukkan aktivitas lainnya...'
       }
-    ]
+    ])
   },
 
   MBAK_EKA: {
     role: 'MBAK_EKA' as any,
     title: 'Form Laporan Harian - Mbak Eka',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'angsuran',
         label: 'Angsuran',
@@ -246,13 +272,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Masukkan aktivitas lainnya...'
       }
-    ]
+    ])
   },
 
   BAPAK_DIAH: {
     role: 'BAPAK_DIAH' as any,
     title: 'Form Laporan Harian - Bapak Diah Supriyanto',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'angsuran',
         label: 'Angsuran',
@@ -313,13 +339,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Masukkan aktivitas lainnya...'
       }
-    ]
+    ])
   },
 
   BAPAK_PRASETYO: {
     role: 'BAPAK_PRASETYO' as any,
     title: 'Form Laporan Harian - Bapak Prasetyo Dani',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'ktp',
         label: 'KTP',
@@ -369,13 +395,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Aktivitas lainnya...'
       }
-    ]
+    ])
   },
 
   BAPAK_GIYARTO: {
     role: 'BAPAK_GIYARTO' as any,
     title: 'Form Laporan Harian - Bapak Giyarto',
-    fields: [
+    fields: withTimelineField([
       {
         name: 'ktp',
         label: 'KTP',
@@ -439,15 +465,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Aktivitas lainnya...'
       }
-    ]
+    ])
   },
 
-  // Admin configuration with all possible fields for comprehensive export
   ADMIN: {
     role: 'ADMIN' as any,
     title: 'Form Laporan Harian - Administrator',
-    fields: [
-      // Basic fields
+    fields: withTimelineField([
       {
         name: 'aktivitasHarian',
         label: 'Aktivitas Harian',
@@ -455,7 +479,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Aktivitas harian...'
       },
-      // Marketing funding fields
       {
         name: 'angsuran',
         label: 'Angsuran',
@@ -498,7 +521,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Keterangan...'
       },
-      // Additional fields from various users
       {
         name: 'marketingFunding',
         label: 'Marketing Funding',
@@ -569,6 +591,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         required: false,
         placeholder: 'Aktivitas lain-lain...'
       }
-    ]
+    ])
   }
 }

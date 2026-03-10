@@ -1,6 +1,32 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
+export const MOCK_USER_EMAILS = [
+  'arwan@ksuke.com',
+  'anggit@ksuke.com',
+  'giyarto@ksuke.com',
+  'toha@ksuke.com',
+  'sayudi@ksuke.com',
+  'yuli@ksuke.com',
+  'prasetyo@ksuke.com',
+  'diah@ksuke.com',
+  'eka@ksuke.com'
+] as const
+
+export const getMockUserEmail = (token: string): string | null => {
+  if (!token.startsWith('mock-token-')) {
+    return null
+  }
+
+  const userIndex = Number.parseInt(token.replace('mock-token-', ''), 10)
+
+  if (!Number.isInteger(userIndex) || userIndex < 1 || userIndex > MOCK_USER_EMAILS.length) {
+    return null
+  }
+
+  return MOCK_USER_EMAILS[userIndex - 1]
+}
+
 export const hashPassword = async (password: string): Promise<string> => {
   return await bcrypt.hash(password, 12)
 }
