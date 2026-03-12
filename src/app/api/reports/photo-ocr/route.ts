@@ -16,6 +16,7 @@ type StructuredCounts = {
   angsuran: number
   fundingPersonal: number
   fundingB2B: number
+  aqod: number
   marketingPersonal: number
   marketingB2B: number
   ktp: number
@@ -41,6 +42,7 @@ const DEFAULT_COUNTS: StructuredCounts = {
   angsuran: 0,
   fundingPersonal: 0,
   fundingB2B: 0,
+  aqod: 0,
   marketingPersonal: 0,
   marketingB2B: 0,
   ktp: 0,
@@ -146,7 +148,8 @@ const extractHeaderCrop = async (buffer: Buffer) => {
       width: Math.min(width - Math.floor(width * 0.08), Math.floor(width * 0.84)),
       height: Math.min(height - Math.floor(height * 0.03), Math.floor(height * 0.17))
     })
-    .png()
+    .resize({ width: 1400, withoutEnlargement: true })
+    .jpeg({ quality: 88, chromaSubsampling: '4:4:4' })
     .toBuffer()
 }
 
@@ -158,6 +161,13 @@ const preprocessForVision = async (buffer: Buffer) => {
     .sharpen({ sigma: 1.3 })
     .linear(1.16, -8)
     .png()
+    .toBuffer()
+}
+
+const preprocessForGemini = async (buffer: Buffer) => {
+  return sharp(buffer)
+    .resize({ width: 1800, withoutEnlargement: true })
+    .jpeg({ quality: 86, chromaSubsampling: '4:4:4' })
     .toBuffer()
 }
 
@@ -224,27 +234,175 @@ const normalizeCounts = (counts: Partial<StructuredCounts> | undefined): Structu
   return nextCounts
 }
 
+const BUSINESS_KEYWORD_PATTERNS = [
+  /\bsholat\b/i,
+  /\bistirahat\b/i,
+  /\bevent\b/i,
+  /\bsurvey\b/i,
+  /\bsurvei\b/i,
+  /\baqod\b/i,
+  /\batod\b/i,
+  /\bfunding\b/i,
+  /\btabungan\b/i,
+  /\bmarketing\b/i,
+  /\bwakaf\b/i,
+  /\bqur'?an\b/i,
+  /\bktp\b/i,
+  /\badr\b/i,
+  /\bmaintenance\b/i,
+  /\bberangkat\b/i,
+  /\bsampai\b/i,
+  /\bselesai\b/i
+]
+
+const splitActivityLines = (activity: string) =>
+  activity
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+const normalizeBusinessTerms = (value: string) =>
+  value.replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
+
+const stripBulletPrefix = (value: string) => value.replace(/^-+\s*/, '').trim()
+
+const looksLikePersonEntry = (value: string) => {
+  const normalized = stripBulletPrefix(value)
+    .replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[’']/g, '')
+    .replace(/\./g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!normalized) {
+    return false
+  }
+
+  if (BUSINESS_KEYWORD_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return false
+  }
+
+  if (/[0-9]/.test(normalized) || normalized.includes('+') || normalized.includes(':')) {
+    return false
+  }
+
+  const words = normalized.split(' ').filter(Boolean)
+
+  if (words.length < 1 || words.length > 4) {
+    return false
+  }
+
+  return words.every((word) => /^[a-zA-Z]+$/.test(word))
+}
+
+const countAngsuranNamesFromActivity = (activity: string) => {
+  const lines = splitActivityLines(activity)
+
+  if (lines.length === 0) {
+    return 0
+  }
+
+  const firstLine = stripBulletPrefix(lines[0])
+  const firstLineWithoutPrefix = firstLine.replace(/^:+\s*/, '').trim()
+  const bulletLines = lines.slice(1).map(stripBulletPrefix).filter(Boolean)
+  const bulletCount = bulletLines.filter(looksLikePersonEntry).length
+
+  if (/\bangsuran\b/i.test(firstLine)) {
+    const trailingName = firstLine
+      .replace(/^.*?\bangsuran\b/i, '')
+      .replace(/^[:\-\s]+/, '')
+      .trim()
+
+    return bulletCount + (looksLikePersonEntry(trailingName) ? 1 : 0)
+  }
+
+  if ((!firstLineWithoutPrefix || firstLineWithoutPrefix === ':') && bulletCount > 0) {
+    return bulletCount
+  }
+
+  const personLikeLineCount = lines
+    .map(stripBulletPrefix)
+    .filter(looksLikePersonEntry).length
+
+  if (personLikeLineCount === lines.length && personLikeLineCount > 1) {
+    return personLikeLineCount
+  }
+
+  return 0
+}
+
+const inferStructuredCounts = (
+  timeline: TimelineEntry[],
+  counts: StructuredCounts
+): StructuredCounts => {
+  const inferredCounts = { ...counts }
+
+  const inferredAngsuran = timeline.reduce((total, item) => {
+    return total + countAngsuranNamesFromActivity(item.activity)
+  }, 0)
+
+  if (inferredAngsuran > inferredCounts.angsuran) {
+    inferredCounts.angsuran = inferredAngsuran
+  }
+
+  const inferredAqod = timeline.reduce((total, item) => {
+    const matches = normalizeBusinessTerms(item.activity).match(/\baqod\b/gi)
+    return total + (matches?.length || 0)
+  }, 0)
+
+  if (inferredAqod > inferredCounts.aqod) {
+    inferredCounts.aqod = inferredAqod
+  }
+
+  return inferredCounts
+}
+
 const normalizeStructuredResult = (payload: any): StructuredPhotoResult => {
   const timeline = Array.isArray(payload?.timeline)
     ? payload.timeline
         .map((item: any, index: number) => ({
           index: Number.isFinite(Number(item?.index)) ? Number(item.index) : index + 1,
           time: typeof item?.time === 'string' ? item.time.trim() : '',
-          activity: typeof item?.activity === 'string' ? item.activity.trim() : ''
+          activity:
+            typeof item?.activity === 'string'
+              ? normalizeBusinessTerms(item.activity)
+                  .replace(/\r/g, '\n')
+                  .split('\n')
+                  .map((line: string, lineIndex: number) => {
+                    const trimmed = line.trim()
+
+                    if (!trimmed) {
+                      return ''
+                    }
+
+                    if (lineIndex === 0) {
+                      return trimmed
+                    }
+
+                    return trimmed.startsWith('-') ? `- ${trimmed.replace(/^-+\s*/, '')}` : `- ${trimmed}`
+                  })
+                  .filter(Boolean)
+                  .join('\n')
+                  .trim()
+              : ''
         }))
         .filter((item: TimelineEntry) => item.time || item.activity)
     : []
 
   const normalizedTranscript =
-    typeof payload?.normalizedTranscript === 'string' ? payload.normalizedTranscript.trim() : ''
+    typeof payload?.normalizedTranscript === 'string'
+      ? normalizeBusinessTerms(payload.normalizedTranscript).trim()
+      : ''
 
   return {
     displayDate: typeof payload?.displayDate === 'string' && payload.displayDate.trim() ? payload.displayDate.trim() : null,
     detectedDate: typeof payload?.detectedDate === 'string' && payload.detectedDate.trim() ? payload.detectedDate.trim() : null,
     normalizedTranscript,
     timeline,
-    counts: normalizeCounts(payload?.counts),
-    notes: typeof payload?.notes === 'string' ? payload.notes.trim() : ''
+    counts: inferStructuredCounts(timeline, normalizeCounts(payload?.counts)),
+    notes: typeof payload?.notes === 'string' ? normalizeBusinessTerms(payload.notes).trim() : ''
   }
 }
 
@@ -268,15 +426,54 @@ Tujuan:
    Baris 2: kosong
    Baris berikutnya: "1. 08.30 Berangkat Survey" dan seterusnya.
 
+Aturan format timeline:
+- Jika sebuah item hanya 1 aktivitas biasa, formatkan seperti:
+  "1. 08.20 - 09.00 : Ambil angsuran Eko nurul Huda"
+- Jika sebuah blok mencakup rentang waktu lalu berisi beberapa nama/kegiatan di bawahnya, gabungkan menjadi SATU item timeline.
+- Untuk blok seperti itu, kolom activity HARUS berupa teks multiline, misalnya:
+  ":\n- Okik setyobudi\n- Dwi yanto\n- Gunawan (TF)"
+- Pertahankan tanda kurung seperti "(TF)", "(Sda)", "(Senen)" apa adanya jika terlihat.
+- Jika di foto ada kurung kurawal/garis penghubung yang menggabungkan beberapa nomor menjadi satu blok waktu, gabungkan semua isi blok itu menjadi satu item timeline.
+- Jika waktu awal ada di baris atas dan waktu akhir ada di baris bawah blok yang sama, gunakan format "HH.MM - HH.MM".
+- Jangan pecah daftar nama menjadi item timeline terpisah kalau sebenarnya masih satu blok waktu yang sama.
+
+Contoh acuan yang harus diikuti untuk pola seperti foto lapangan:
+Tanggal:
+"Minggu 1 Maret 2026"
+
+Timeline yang benar:
+1. 08.20 - 09.00 : Ambil angsuran Eko nurul Huda
+2. 09.00 - 12.00 :
+   - Okik setyobudi
+   - Dwi yanto
+   - Gunawan (TF)
+   - Dwi yulianti (TF)
+   - Intarto (Sda)
+   - Wahyu
+   - Bambang Gunawan (Senen)
+3. 12.00 - 13.00 : Sholat dhuhur + istirahat
+4. 13.00 - 14.30 : Event di Sengon RT 2 + p. Supadi
+5. 14.30 - 17.15 :
+   - Ambil angsuran Siswanto
+   - Didik
+   - Ria aprilia (Sda)
+   - Agus Bintaro
+
+Untuk contoh di atas, nilai counts.angsuran yang benar adalah 12.
+
 Aturan penting:
 - Gunakan gambar sebagai sumber utama. OCR text hanya sebagai bantuan.
 - Jangan mengarang isi yang tidak terlihat.
 - Pertahankan nama orang apa adanya jika terbaca.
 - Gunakan format waktu HH.MM.
 - "tabungan", "simpanan", "deposito", dan "funding" dianggap fundingPersonal.
+- Jika OCR membaca "atod", "agod", "aqed", "aqad", atau "akad", normalisasikan menjadi "aqod".
 - "Berangkat Survey" dan "Sampai tempat survey ..." masuk timeline, tetapi TIDAK menambah hitungan survey.
 - Hitung survey hanya jika barisnya adalah kegiatan survey yang benar-benar dilakukan, misalnya "Survey Ruswanti".
-- Hitung angsuran bila baris menunjukkan ambil/setor/tagih angsuran.
+- Hitung angsuran bila ada aktivitas "ambil/setor/tagih angsuran", termasuk jika muncul di dalam bullet list pada satu blok waktu.
+- Hitung aqod hanya jika memang ada aktivitas aqod/akad yang terlihat jelas.
+- Jangan menghitung nama orang biasa sebagai survey/angsuran/funding kalau tidak ada kata kegiatannya.
+- Aktivitas seperti "Sholat dhuhur + istirahat" atau "Event ..." masuk timeline, tetapi tidak menambah hitungan field bisnis kecuali ada kata kunci yang jelas.
 - Jika tidak yakin, lebih baik kosongkan daripada menebak.
 - Untuk timeline, gunakan urutan nomor yang terlihat pada kertas.
 
@@ -306,7 +503,10 @@ ${visionText || '(tidak ada OCR bantuan)'}
           properties: {
             index: { type: 'integer' },
             time: { type: 'string' },
-            activity: { type: 'string' }
+            activity: {
+              type: 'string',
+              description: 'Deskripsi aktivitas. Boleh multiline dengan bullet list memakai format "- item" pada baris berikutnya.'
+            }
           },
           required: ['index', 'time', 'activity']
         }
@@ -318,6 +518,7 @@ ${visionText || '(tidak ada OCR bantuan)'}
           angsuran: { type: 'integer' },
           fundingPersonal: { type: 'integer' },
           fundingB2B: { type: 'integer' },
+          aqod: { type: 'integer' },
           marketingPersonal: { type: 'integer' },
           marketingB2B: { type: 'integer' },
           ktp: { type: 'integer' },
@@ -333,6 +534,7 @@ ${visionText || '(tidak ada OCR bantuan)'}
           'angsuran',
           'fundingPersonal',
           'fundingB2B',
+          'aqod',
           'marketingPersonal',
           'marketingB2B',
           'ktp',
@@ -367,13 +569,13 @@ ${visionText || '(tidak ada OCR bantuan)'}
               { text: prompt },
               {
                 inlineData: {
-                  mimeType: 'image/png',
+                  mimeType: 'image/jpeg',
                   data: fullImageBase64
                 }
               },
               {
                 inlineData: {
-                  mimeType: 'image/png',
+                  mimeType: 'image/jpeg',
                   data: headerImageBase64
                 }
               }
@@ -428,16 +630,25 @@ export async function POST(request: NextRequest) {
     }
 
     const arrayBuffer = await file.arrayBuffer()
-    const rotatedImage = await sharp(Buffer.from(arrayBuffer)).rotate().png().toBuffer()
-    const headerCrop = await extractHeaderCrop(rotatedImage)
+    const normalizedImage = await sharp(Buffer.from(arrayBuffer))
+      .rotate()
+      .jpeg({ quality: 90, chromaSubsampling: '4:4:4' })
+      .toBuffer()
+
+    const [headerCrop, geminiImage] = await Promise.all([
+      extractHeaderCrop(normalizedImage),
+      preprocessForGemini(normalizedImage)
+    ])
 
     let visionText = ''
+    let visionErrorMessage = ''
     if (!visionBillingDisabled && hasVisionCredentials()) {
       try {
-        const visionImage = await preprocessForVision(rotatedImage)
+        const visionImage = await preprocessForVision(normalizedImage)
         visionText = await callVisionOcr(toBase64(visionImage))
       } catch (error) {
         const message = getErrorMessage(error)
+        visionErrorMessage = message
 
         if (isVisionBillingError(message)) {
           visionBillingDisabled = true
@@ -449,17 +660,22 @@ export async function POST(request: NextRequest) {
     }
 
     let structured: StructuredPhotoResult | null = null
+    let geminiErrorMessage = ''
     try {
-      structured = await callGeminiStructuring(toBase64(rotatedImage), toBase64(headerCrop), visionText)
+      structured = await callGeminiStructuring(toBase64(geminiImage), toBase64(headerCrop), visionText)
     } catch (error) {
+      geminiErrorMessage = getErrorMessage(error)
       console.error('Gemini structuring error:', error)
     }
 
     if (!visionText && !structured) {
+      const diagnostics = [visionErrorMessage, geminiErrorMessage].filter(Boolean)
       return NextResponse.json(
         {
           message:
-            'Google Vision OCR atau Gemini belum bisa dipakai. Set `GOOGLE_CLOUD_VISION_API_KEY` atau kredensial Google Cloud, dan `GEMINI_API_KEY`.'
+            diagnostics.length > 0
+              ? `OCR foto gagal diproses. ${diagnostics.join(' | ')}`
+              : 'Google Vision OCR atau Gemini belum bisa dipakai. Set `GOOGLE_CLOUD_VISION_API_KEY` atau kredensial Google Cloud, dan `GEMINI_API_KEY`.'
         },
         { status: 500 }
       )

@@ -207,7 +207,13 @@ const mergeCells = (ws: any, range: string) => {
 const getFieldLabel = (fieldName: string, userRole: string): string => {
   const config = FORM_CONFIGS[userRole]
   const field = config?.fields.find(f => f.name === fieldName)
-  return field?.label || fieldName
+  if (field?.label) {
+    return field.label
+  }
+
+  return fieldName
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/^./, (char) => char.toUpperCase())
 }
 
 const TEXTAREA_FIELDS = new Set([
@@ -265,18 +271,46 @@ const calculateAnalytics = (reports: any[], fieldName: string) => {
 }
 
 // Function to detect numeric fields
-const getNumericFields = (reports: any[], availableFields: string[]) => {
+const getNumericFields = (reports: any[], availableFields: string[], userRole: string) => {
+  const configuredFields = new Map(
+    (FORM_CONFIGS[userRole]?.fields || []).map((field) => [field.name, field])
+  )
+
   const numericFields: string[] = []
   
   availableFields.forEach(fieldName => {
+    const configuredField = configuredFields.get(fieldName)
+
+    if (configuredField) {
+      if (configuredField.type === 'number' || configuredField.type === 'dropdown-number') {
+        numericFields.push(fieldName)
+      }
+
+      return
+    }
+
+    if (TEXTAREA_FIELDS.has(fieldName)) {
+      return
+    }
+
+    if (/tanggal|date|time|waktu|keterangan|kegiatan|aktivitas/i.test(fieldName)) {
+      return
+    }
+
     let hasNumericData = false
     for (const report of reports) {
       const value = report.reportData?.[fieldName]
-      if (value && !isNaN(parseFloat(value))) {
+      if (typeof value === 'number') {
+        hasNumericData = true
+        break
+      }
+
+      if (typeof value === 'string' && /^\d+(\.\d+)?$/.test(value.trim())) {
         hasNumericData = true
         break
       }
     }
+
     if (hasNumericData) {
       numericFields.push(fieldName)
     }
@@ -428,12 +462,7 @@ const createAdvancedUserSheet = (userName: string, reports: any[], title: string
   })
   
   // Add summary if there are numeric fields
-  const numericFields = availableFields.filter(fieldName => {
-    return reports.some(report => {
-      const value = report.reportData?.[fieldName]
-      return value && !isNaN(parseFloat(value))
-    })
-  })
+  const numericFields = getNumericFields(reports, availableFields, userRole)
   
   if (numericFields.length > 0) {
     data.push([]) // Empty row

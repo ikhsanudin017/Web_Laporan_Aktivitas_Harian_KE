@@ -34,6 +34,7 @@ const SUMMARY_LABELS: Partial<Record<ReportSuggestionKey, string>> = {
   angsuran: 'angsuran',
   fundingB2B: 'funding B2B',
   fundingPersonal: 'funding personal',
+  aqod: 'aqod',
   marketingB2B: 'marketing B2B',
   marketingPersonal: 'marketing personal',
   ktp: 'KTP',
@@ -47,8 +48,11 @@ const SUMMARY_LABELS: Partial<Record<ReportSuggestionKey, string>> = {
 
 const formatTimelineLine = (line: string) => line.replace(/^(\d{2}):(\d{2})\b/, '$1.$2')
 
+const normalizeBusinessTerms = (value: string) =>
+  value.replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
+
 const normalizeWhitespace = (value: string) =>
-  value
+  normalizeBusinessTerms(value)
     .replace(/\r/g, '\n')
     .replace(/\u00A0/g, ' ')
     .replace(/[|•·]/g, ' ')
@@ -147,6 +151,7 @@ const normalizeTimelineLine = (line: string) => {
 
   cleaned = cleaned.replace(/^[\[(]?\d{1,2}[\])\].:-]?\s*/, '')
   cleaned = normalizeTimePrefix(cleaned)
+  cleaned = normalizeBusinessTerms(cleaned)
 
   return cleaned.trim()
 }
@@ -319,7 +324,7 @@ const countDetectedFields = (timelineLines: string[], availableFields: string[])
   const counts: Partial<Record<ReportSuggestionKey, number>> = {}
 
   timelineLines.forEach((line) => {
-    const content = removeTimePrefix(line).toLowerCase()
+    const content = normalizeBusinessTerms(removeTimePrefix(line).toLowerCase())
     const compact = content.replace(/[^a-z0-9\s']/g, ' ').replace(/\s+/g, ' ').trim()
 
     const isTravelSurveyLine =
@@ -333,6 +338,11 @@ const countDetectedFields = (timelineLines: string[], availableFields: string[])
 
     if (/\bangsuran\b/.test(compact)) {
       incrementField(counts, 'angsuran', availableFields)
+      return
+    }
+
+    if (/\baqod\b/.test(compact)) {
+      incrementField(counts, 'aqod', availableFields)
       return
     }
 

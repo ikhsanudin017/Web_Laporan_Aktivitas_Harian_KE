@@ -20,6 +20,7 @@ export interface DailyReportData {
   fundingB2B?: number
   fundingPersonal?: number
   survey?: number
+  aqod?: number
   keterangan?: string
 
   // High complexity fields (Bapak Arwan, Bapak Diah)

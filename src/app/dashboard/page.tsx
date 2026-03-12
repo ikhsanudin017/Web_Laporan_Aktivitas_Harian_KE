@@ -43,6 +43,7 @@ const STRUCTURED_COUNT_LABELS: Record<string, string> = {
   angsuran: 'angsuran',
   fundingPersonal: 'funding personal/tabungan',
   fundingB2B: 'funding B2B',
+  aqod: 'aqod',
   marketingPersonal: 'marketing personal',
   marketingB2B: 'marketing B2B',
   ktp: 'KTP',
@@ -62,6 +63,26 @@ const formatDetectedDate = (dateString: string) =>
     year: 'numeric'
   }).replace(',', '')
 
+const normalizeStructuredActivityText = (activity: string) =>
+  activity
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line, index) => {
+      const trimmed = line.trim()
+
+      if (!trimmed) {
+        return ''
+      }
+
+      if (index === 0) {
+        return trimmed
+      }
+
+      return trimmed.startsWith('-') ? `   ${trimmed}` : `   - ${trimmed}`
+    })
+    .filter(Boolean)
+    .join('\n')
+
 const buildStructuredTimelineText = (structured: StructuredPhotoResult) => {
   if (!Array.isArray(structured.timeline) || structured.timeline.length === 0) {
     return ''
@@ -71,9 +92,20 @@ const buildStructuredTimelineText = (structured: StructuredPhotoResult) => {
     .map((item, index) => {
       const number = Number.isFinite(Number(item?.index)) ? Number(item?.index) : index + 1
       const time = typeof item?.time === 'string' ? item.time.trim() : ''
-      const activity = typeof item?.activity === 'string' ? item.activity.trim() : ''
-      const content = [time, activity].filter(Boolean).join(' ').trim()
-      return content ? `${number}. ${content}` : ''
+      const activity = typeof item?.activity === 'string' ? normalizeStructuredActivityText(item.activity) : ''
+
+      if (!time && !activity) {
+        return ''
+      }
+
+      if (!activity.includes('\n')) {
+        const content = [time, activity].filter(Boolean).join(' ').trim()
+        return content ? `${number}. ${content}` : ''
+      }
+
+      const [firstLine, ...restLines] = activity.split('\n')
+      const header = `${number}. ${[time, firstLine].filter(Boolean).join(' ').trim()}`.trim()
+      return [header, ...restLines].filter(Boolean).join('\n')
     })
     .filter(Boolean)
     .join('\n')
@@ -220,6 +252,8 @@ export default function DashboardPage() {
   const [photoProgress, setPhotoProgress] = useState(0)
   const [photoSummary, setPhotoSummary] = useState('')
   const [photoExtractedText, setPhotoExtractedText] = useState('')
+  const [photoFilledFields, setPhotoFilledFields] = useState<string[]>([])
+  const [photoOriginalDate, setPhotoOriginalDate] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement | null>(null)
   const photoPasteAreaRef = useRef<HTMLDivElement | null>(null)
   const router = useRouter()
@@ -422,9 +456,30 @@ export default function DashboardPage() {
     }
   }  
 
-  const clearPhotoState = () => {
+  const getEmptyFieldValue = (fieldName: string) => {
+    const field = formConfig?.fields.find((item) => item.name === fieldName)
+    return field?.type === 'number' ? 0 : ''
+  }
+
+  const clearPhotoState = (options?: { clearFilledFields?: boolean }) => {
     if (photoPreviewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(photoPreviewUrl)
+    }
+
+    if (options?.clearFilledFields && photoFilledFields.length > 0) {
+      setReportData((prev: any) => {
+        const next = { ...prev }
+
+        photoFilledFields.forEach((fieldName) => {
+          next[fieldName] = getEmptyFieldValue(fieldName)
+        })
+
+        return next
+      })
+
+      if (photoOriginalDate) {
+        setSelectedDate(photoOriginalDate)
+      }
     }
 
     setSelectedPhoto(null)
@@ -433,6 +488,8 @@ export default function DashboardPage() {
     setPhotoProgress(0)
     setPhotoSummary('')
     setPhotoExtractedText('')
+    setPhotoFilledFields([])
+    setPhotoOriginalDate(null)
 
     if (photoInputRef.current) {
       photoInputRef.current.value = ''
@@ -576,19 +633,29 @@ export default function DashboardPage() {
 
       const availableFields = formConfig.fields.map((field) => field.name)
       const structured = responseData.structured as StructuredPhotoResult | null
+      const baseReportData = { ...reportData }
+
+      photoFilledFields.forEach((fieldName) => {
+        baseReportData[fieldName] = getEmptyFieldValue(fieldName)
+      })
+
       let nextSummary = ''
 
       if (structured) {
-        const suggestions = buildStructuredSuggestions(structured, availableFields, reportData)
+        const suggestions = buildStructuredSuggestions(structured, availableFields, baseReportData)
         const previewText = buildStructuredPreviewText(structured) || responseData.text || ''
 
         setPhotoExtractedText(previewText)
-        setReportData((prev: any) => ({
-          ...prev,
+        setReportData(() => ({
+          ...baseReportData,
           ...suggestions
         }))
+        setPhotoFilledFields(Object.keys(suggestions))
 
         if (structured.detectedDate) {
+          if (!photoOriginalDate) {
+            setPhotoOriginalDate(selectedDate)
+          }
           setSelectedDate(structured.detectedDate)
         }
 
@@ -597,7 +664,7 @@ export default function DashboardPage() {
         const processed = processPhotoOcrText(
           responseData.text || '',
           availableFields,
-          reportData
+          baseReportData
         )
 
         const previewLines: string[] = []
@@ -616,12 +683,16 @@ export default function DashboardPage() {
         }
 
         setPhotoExtractedText(previewLines.join('\n'))
-        setReportData((prev: any) => ({
-          ...prev,
+        setReportData(() => ({
+          ...baseReportData,
           ...processed.suggestions
         }))
+        setPhotoFilledFields(Object.keys(processed.suggestions))
 
         if (processed.detectedDate) {
+          if (!photoOriginalDate) {
+            setPhotoOriginalDate(selectedDate)
+          }
           setSelectedDate(processed.detectedDate)
         }
 
@@ -1093,7 +1164,7 @@ export default function DashboardPage() {
 
                         <button
                           type="button"
-                          onClick={clearPhotoState}
+                          onClick={() => clearPhotoState({ clearFilledFields: true })}
                           disabled={!selectedPhoto && !photoPreviewUrl}
                           className="bg-white text-blue-700 font-medium px-4 py-3 rounded-lg border border-blue-300 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] text-sm"
                         >

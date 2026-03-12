@@ -90,6 +90,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         placeholder: '0'
       },
       {
+        name: 'aqod',
+        label: 'Aqod',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
         name: 'keterangan',
         label: 'Keterangan',
         type: 'textarea',
@@ -120,6 +127,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
       {
         name: 'survey',
         label: 'Survey',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'aqod',
+        label: 'Aqod',
         type: 'dropdown-number',
         required: false,
         placeholder: '0'
@@ -192,6 +206,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         placeholder: '0'
       },
       {
+        name: 'aqod',
+        label: 'Aqod',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
         name: 'keterangan',
         label: 'Keterangan',
         type: 'textarea',
@@ -254,6 +275,13 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
       {
         name: 'survey',
         label: 'Survey',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0'
+      },
+      {
+        name: 'aqod',
+        label: 'Aqod',
         type: 'dropdown-number',
         required: false,
         placeholder: '0'
