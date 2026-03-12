@@ -242,6 +242,7 @@ const BUSINESS_KEYWORD_PATTERNS = [
   /\bsurvei\b/i,
   /\baqod\b/i,
   /\batod\b/i,
+  /\bkunjungan\b/i,
   /\bfunding\b/i,
   /\btabungan\b/i,
   /\bmarketing\b/i,
@@ -263,7 +264,9 @@ const splitActivityLines = (activity: string) =>
     .filter(Boolean)
 
 const normalizeBusinessTerms = (value: string) =>
-  value.replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
+  value
+    .replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
+    .replace(/\b(kunjugan|kunjgan|kunjngan)\b/gi, 'kunjungan')
 
 const stripBulletPrefix = (value: string) => value.replace(/^-+\s*/, '').trim()
 
@@ -333,6 +336,16 @@ const countAngsuranNamesFromActivity = (activity: string) => {
   return 0
 }
 
+const classifyMarketingActivity = (activity: string) => {
+  const normalized = normalizeBusinessTerms(activity).toLowerCase()
+
+  if (!/\b(marketing|kunjungan)\b/.test(normalized)) {
+    return null
+  }
+
+  return /\bb2b\b/.test(normalized) ? 'marketingB2B' : 'marketingPersonal'
+}
+
 const inferStructuredCounts = (
   timeline: TimelineEntry[],
   counts: StructuredCounts
@@ -354,6 +367,22 @@ const inferStructuredCounts = (
 
   if (inferredAqod > inferredCounts.aqod) {
     inferredCounts.aqod = inferredAqod
+  }
+
+  const inferredMarketingPersonal = timeline.reduce((total, item) => {
+    return total + (classifyMarketingActivity(item.activity) === 'marketingPersonal' ? 1 : 0)
+  }, 0)
+
+  if (inferredMarketingPersonal > inferredCounts.marketingPersonal) {
+    inferredCounts.marketingPersonal = inferredMarketingPersonal
+  }
+
+  const inferredMarketingB2B = timeline.reduce((total, item) => {
+    return total + (classifyMarketingActivity(item.activity) === 'marketingB2B' ? 1 : 0)
+  }, 0)
+
+  if (inferredMarketingB2B > inferredCounts.marketingB2B) {
+    inferredCounts.marketingB2B = inferredMarketingB2B
   }
 
   return inferredCounts
@@ -468,10 +497,13 @@ Aturan penting:
 - Gunakan format waktu HH.MM.
 - "tabungan", "simpanan", "deposito", dan "funding" dianggap fundingPersonal.
 - Jika OCR membaca "atod", "agod", "aqed", "aqad", atau "akad", normalisasikan menjadi "aqod".
+- Jika OCR membaca "kunjugan", normalisasikan menjadi "kunjungan".
 - "Berangkat Survey" dan "Sampai tempat survey ..." masuk timeline, tetapi TIDAK menambah hitungan survey.
 - Hitung survey hanya jika barisnya adalah kegiatan survey yang benar-benar dilakukan, misalnya "Survey Ruswanti".
 - Hitung angsuran bila ada aktivitas "ambil/setor/tagih angsuran", termasuk jika muncul di dalam bullet list pada satu blok waktu.
 - Hitung aqod hanya jika memang ada aktivitas aqod/akad yang terlihat jelas.
+- Hitung "kunjungan" sebagai marketingPersonal secara default.
+- Jika ada "marketing" atau "kunjungan" yang jelas bertuliskan "B2B", hitung sebagai marketingB2B.
 - Jangan menghitung nama orang biasa sebagai survey/angsuran/funding kalau tidak ada kata kegiatannya.
 - Aktivitas seperti "Sholat dhuhur + istirahat" atau "Event ..." masuk timeline, tetapi tidak menambah hitungan field bisnis kecuali ada kata kunci yang jelas.
 - Jika tidak yakin, lebih baik kosongkan daripada menebak.

@@ -83,6 +83,22 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         category: 'Funding'
       },
       {
+        name: 'marketingB2B',
+        label: 'Marketing B2B',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Marketing'
+      },
+      {
+        name: 'marketingPersonal',
+        label: 'Marketing Personal',
+        type: 'dropdown-number',
+        required: false,
+        placeholder: '0',
+        category: 'Marketing'
+      },
+      {
         name: 'survey',
         label: 'Survey',
         type: 'dropdown-number',

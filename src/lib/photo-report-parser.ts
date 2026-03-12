@@ -49,7 +49,9 @@ const SUMMARY_LABELS: Partial<Record<ReportSuggestionKey, string>> = {
 const formatTimelineLine = (line: string) => line.replace(/^(\d{2}):(\d{2})\b/, '$1.$2')
 
 const normalizeBusinessTerms = (value: string) =>
-  value.replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
+  value
+    .replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
+    .replace(/\b(kunjugan|kunjgan|kunjngan)\b/gi, 'kunjungan')
 
 const normalizeWhitespace = (value: string) =>
   normalizeBusinessTerms(value)
@@ -346,12 +348,12 @@ const countDetectedFields = (timelineLines: string[], availableFields: string[])
       return
     }
 
-    if (/\bmarketing\b/.test(compact) && /\bb2b\b/.test(compact)) {
+    if (/\b(marketing|kunjungan)\b/.test(compact) && /\bb2b\b/.test(compact)) {
       incrementField(counts, 'marketingB2B', availableFields)
       return
     }
 
-    if (/\bmarketing\b/.test(compact)) {
+    if (/\b(marketing|kunjungan)\b/.test(compact)) {
       incrementField(counts, 'marketingPersonal', availableFields)
       return
     }
