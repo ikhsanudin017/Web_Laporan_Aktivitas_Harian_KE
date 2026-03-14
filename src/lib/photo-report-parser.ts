@@ -53,6 +53,62 @@ const normalizeBusinessTerms = (value: string) =>
     .replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
     .replace(/\b(kunjugan|kunjgan|kunjngan)\b/gi, 'kunjungan')
 
+const BUSINESS_ENTITY_PATTERNS = [
+  /\bb2b\b/i,
+  /\bud\b/i,
+  /\btk\b/i,
+  /\btb\b/i,
+  /\bcv\b/i,
+  /\bpt\b/i,
+  /\btoko\b/i,
+  /\bmotor\b/i,
+  /\bcell\b/i,
+  /\bsalon\b/i,
+  /\bperabot\b/i,
+  /\bbengkel\b/i,
+  /\bstore\b/i,
+  /\bshop\b/i,
+  /\bcounter\b/i
+]
+
+const hasBusinessContext = (value: string) =>
+  BUSINESS_ENTITY_PATTERNS.some((pattern) => pattern.test(normalizeBusinessTerms(value)))
+
+const extractActivityMarkerCode = (value: string) => {
+  const normalized = normalizeBusinessTerms(value).replace(/[^a-z0-9\s]/gi, ' ')
+  const codes = normalized.match(/\b[alf]\b/gi)
+
+  if (!codes?.length) {
+    return null
+  }
+
+  return codes[codes.length - 1].toUpperCase()
+}
+
+const classifyFieldFromMarker = (
+  value: string
+): 'angsuran' | 'fundingPersonal' | 'fundingB2B' | 'marketingPersonal' | 'marketingB2B' | null => {
+  const markerCode = extractActivityMarkerCode(value)
+
+  if (!markerCode) {
+    return null
+  }
+
+  if (markerCode === 'A') {
+    return 'angsuran'
+  }
+
+  if (markerCode === 'F') {
+    return hasBusinessContext(value) ? 'fundingB2B' : 'fundingPersonal'
+  }
+
+  if (markerCode === 'L') {
+    return hasBusinessContext(value) ? 'marketingB2B' : 'marketingPersonal'
+  }
+
+  return null
+}
+
 const normalizeWhitespace = (value: string) =>
   normalizeBusinessTerms(value)
     .replace(/\r/g, '\n')
@@ -328,6 +384,7 @@ const countDetectedFields = (timelineLines: string[], availableFields: string[])
   timelineLines.forEach((line) => {
     const content = normalizeBusinessTerms(removeTimePrefix(line).toLowerCase())
     const compact = content.replace(/[^a-z0-9\s']/g, ' ').replace(/\s+/g, ' ').trim()
+    const markerField = classifyFieldFromMarker(content)
 
     const isTravelSurveyLine =
       /^(berangkat|sampai|menuju|ke tempat|perjalanan)/.test(compact) &&
@@ -338,6 +395,11 @@ const countDetectedFields = (timelineLines: string[], availableFields: string[])
       return
     }
 
+    if (markerField === 'angsuran') {
+      incrementField(counts, 'angsuran', availableFields)
+      return
+    }
+
     if (/\bangsuran\b/.test(compact)) {
       incrementField(counts, 'angsuran', availableFields)
       return
@@ -345,6 +407,26 @@ const countDetectedFields = (timelineLines: string[], availableFields: string[])
 
     if (/\baqod\b/.test(compact)) {
       incrementField(counts, 'aqod', availableFields)
+      return
+    }
+
+    if (markerField === 'fundingB2B') {
+      incrementField(counts, 'fundingB2B', availableFields)
+      return
+    }
+
+    if (markerField === 'fundingPersonal') {
+      incrementField(counts, 'fundingPersonal', availableFields)
+      return
+    }
+
+    if (markerField === 'marketingB2B') {
+      incrementField(counts, 'marketingB2B', availableFields)
+      return
+    }
+
+    if (markerField === 'marketingPersonal') {
+      incrementField(counts, 'marketingPersonal', availableFields)
       return
     }
 

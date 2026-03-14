@@ -268,6 +268,62 @@ const normalizeBusinessTerms = (value: string) =>
     .replace(/\b(atod|agod|aqed|aqad|akad)\b/gi, 'aqod')
     .replace(/\b(kunjugan|kunjgan|kunjngan)\b/gi, 'kunjungan')
 
+const BUSINESS_ENTITY_PATTERNS = [
+  /\bb2b\b/i,
+  /\bud\b/i,
+  /\btk\b/i,
+  /\btb\b/i,
+  /\bcv\b/i,
+  /\bpt\b/i,
+  /\btoko\b/i,
+  /\bmotor\b/i,
+  /\bcell\b/i,
+  /\bsalon\b/i,
+  /\bperabot\b/i,
+  /\bbengkel\b/i,
+  /\bstore\b/i,
+  /\bshop\b/i,
+  /\bcounter\b/i
+]
+
+const hasBusinessContext = (value: string) =>
+  BUSINESS_ENTITY_PATTERNS.some((pattern) => pattern.test(normalizeBusinessTerms(value)))
+
+const extractActivityMarkerCode = (value: string) => {
+  const normalized = normalizeBusinessTerms(value).replace(/[^a-z0-9\s]/gi, ' ')
+  const codes = normalized.match(/\b[alf]\b/gi)
+
+  if (!codes?.length) {
+    return null
+  }
+
+  return codes[codes.length - 1].toUpperCase()
+}
+
+const classifyFieldFromMarker = (
+  value: string
+): 'angsuran' | 'fundingPersonal' | 'fundingB2B' | 'marketingPersonal' | 'marketingB2B' | null => {
+  const markerCode = extractActivityMarkerCode(value)
+
+  if (!markerCode) {
+    return null
+  }
+
+  if (markerCode === 'A') {
+    return 'angsuran'
+  }
+
+  if (markerCode === 'F') {
+    return hasBusinessContext(value) ? 'fundingB2B' : 'fundingPersonal'
+  }
+
+  if (markerCode === 'L') {
+    return hasBusinessContext(value) ? 'marketingB2B' : 'marketingPersonal'
+  }
+
+  return null
+}
+
 const stripBulletPrefix = (value: string) => value.replace(/^-+\s*/, '').trim()
 
 const looksLikePersonEntry = (value: string) => {
@@ -338,12 +394,17 @@ const countAngsuranNamesFromActivity = (activity: string) => {
 
 const classifyMarketingActivity = (activity: string) => {
   const normalized = normalizeBusinessTerms(activity).toLowerCase()
+  const markerField = classifyFieldFromMarker(normalized)
+
+  if (markerField === 'marketingB2B' || markerField === 'marketingPersonal') {
+    return markerField
+  }
 
   if (!/\b(marketing|kunjungan)\b/.test(normalized)) {
     return null
   }
 
-  return /\bb2b\b/.test(normalized) ? 'marketingB2B' : 'marketingPersonal'
+  return hasBusinessContext(normalized) ? 'marketingB2B' : 'marketingPersonal'
 }
 
 const inferStructuredCounts = (
@@ -367,6 +428,30 @@ const inferStructuredCounts = (
 
   if (inferredAqod > inferredCounts.aqod) {
     inferredCounts.aqod = inferredAqod
+  }
+
+  const inferredMarkerAngsuran = timeline.reduce((total, item) => {
+    return total + (classifyFieldFromMarker(item.activity) === 'angsuran' ? 1 : 0)
+  }, 0)
+
+  if (inferredMarkerAngsuran > inferredCounts.angsuran) {
+    inferredCounts.angsuran = inferredMarkerAngsuran
+  }
+
+  const inferredFundingPersonal = timeline.reduce((total, item) => {
+    return total + (classifyFieldFromMarker(item.activity) === 'fundingPersonal' ? 1 : 0)
+  }, 0)
+
+  if (inferredFundingPersonal > inferredCounts.fundingPersonal) {
+    inferredCounts.fundingPersonal = inferredFundingPersonal
+  }
+
+  const inferredFundingB2B = timeline.reduce((total, item) => {
+    return total + (classifyFieldFromMarker(item.activity) === 'fundingB2B' ? 1 : 0)
+  }, 0)
+
+  if (inferredFundingB2B > inferredCounts.fundingB2B) {
+    inferredCounts.fundingB2B = inferredFundingB2B
   }
 
   const inferredMarketingPersonal = timeline.reduce((total, item) => {
@@ -498,6 +583,12 @@ Aturan penting:
 - "tabungan", "simpanan", "deposito", dan "funding" dianggap fundingPersonal.
 - Jika OCR membaca "atod", "agod", "aqed", "aqad", atau "akad", normalisasikan menjadi "aqod".
 - Jika OCR membaca "kunjugan", normalisasikan menjadi "kunjungan".
+- Jika ada kode huruf tunggal yang berdiri sendiri pada aktivitas, artinya:
+  - "L" = lending / marketing
+  - "F" = funding / tabungan
+  - "A" = angsuran
+- Kode "L/F/A" dipakai sebagai petunjuk klasifikasi count, terutama pada aktivitas kunjungan.
+- Jika aktivitas berkonteks toko/usaha/instansi seperti "UD", "TB", "TK", "motor", "cell", "salon", "perabot", arahkan "L/F" ke field B2B.
 - "Berangkat Survey" dan "Sampai tempat survey ..." masuk timeline, tetapi TIDAK menambah hitungan survey.
 - Hitung survey hanya jika barisnya adalah kegiatan survey yang benar-benar dilakukan, misalnya "Survey Ruswanti".
 - Hitung angsuran bila ada aktivitas "ambil/setor/tagih angsuran", termasuk jika muncul di dalam bullet list pada satu blok waktu.
