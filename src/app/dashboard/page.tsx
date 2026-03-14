@@ -612,6 +612,9 @@ export default function DashboardPage() {
       const token = localStorage.getItem('token')
       const payload = new FormData()
       payload.append('photo', selectedPhoto)
+      if (user?.role) {
+        payload.append('userRole', user.role)
+      }
 
       const response = await fetch('/api/reports/photo-ocr', {
         method: 'POST',
@@ -664,7 +667,8 @@ export default function DashboardPage() {
         const processed = processPhotoOcrText(
           responseData.text || '',
           availableFields,
-          baseReportData
+          baseReportData,
+          user?.role
         )
 
         const previewLines: string[] = []

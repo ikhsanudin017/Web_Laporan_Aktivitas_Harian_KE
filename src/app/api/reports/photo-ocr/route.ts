@@ -37,6 +37,8 @@ type StructuredPhotoResult = {
   notes: string
 }
 
+type SupportedUserRole = 'MAS_ANGGIT' | string
+
 const DEFAULT_COUNTS: StructuredCounts = {
   survey: 0,
   angsuran: 0,
@@ -276,6 +278,7 @@ const BUSINESS_ENTITY_PATTERNS = [
   /\bcv\b/i,
   /\bpt\b/i,
   /\btoko\b/i,
+  /\bwarung\b/i,
   /\bmotor\b/i,
   /\bcell\b/i,
   /\bsalon\b/i,
@@ -322,6 +325,119 @@ const classifyFieldFromMarker = (
   }
 
   return null
+}
+
+const cleanVisitTarget = (value: string) =>
+  normalizeBusinessTerms(value)
+    .replace(/^[-:.,\s]+/, '')
+    .replace(/[-:.,\s]+$/, '')
+    .replace(/\b[alf]\b$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const splitVisitTargets = (activity: string) => {
+  const normalized = normalizeBusinessTerms(activity)
+    .replace(/<\s*b2b\s*>/gi, ' B2B ')
+    .replace(/\b(marketing|kunjungan)\b/gi, '|')
+
+  return normalized
+    .split(/\n+/)
+    .flatMap((line) => line.split('|'))
+    .flatMap((segment) => segment.split(/\s*(?:,|;|\/|\+|&|\bdan\b)\s*/i))
+    .map(cleanVisitTarget)
+    .filter(Boolean)
+}
+
+const countVisitTargetsFromActivity = (activity: string) => {
+  const normalized = normalizeBusinessTerms(activity)
+  const markerField = classifyFieldFromMarker(normalized)
+  const isVisitLikeActivity = /\b(marketing|kunjungan)\b/i.test(normalized)
+
+  if (!isVisitLikeActivity) {
+    return {
+      angsuran: 0,
+      fundingPersonal: 0,
+      fundingB2B: 0,
+      marketingPersonal: 0,
+      marketingB2B: 0
+    }
+  }
+
+  const targets = splitVisitTargets(activity)
+
+  if (targets.length === 0) {
+    return {
+      angsuran: 0,
+      fundingPersonal: 0,
+      fundingB2B: 0,
+      marketingPersonal: 0,
+      marketingB2B: 0
+    }
+  }
+
+  return targets.reduce(
+    (counts, target) => {
+      const isB2BTarget = hasBusinessContext(target) || /\bb2b\b/i.test(target)
+
+      if (markerField === 'angsuran') {
+        counts.angsuran += 1
+        return counts
+      }
+
+      if (markerField === 'fundingB2B' || (markerField === 'fundingPersonal' && isB2BTarget)) {
+        counts.fundingB2B += 1
+        return counts
+      }
+
+      if (markerField === 'fundingPersonal') {
+        counts.fundingPersonal += 1
+        return counts
+      }
+
+      if (isB2BTarget) {
+        counts.marketingB2B += 1
+        return counts
+      }
+
+      counts.marketingPersonal += 1
+      return counts
+    },
+    {
+      angsuran: 0,
+      fundingPersonal: 0,
+      fundingB2B: 0,
+      marketingPersonal: 0,
+      marketingB2B: 0
+    }
+  )
+}
+
+const applyStructuredRoleRules = (
+  result: StructuredPhotoResult,
+  userRole?: SupportedUserRole | null
+): StructuredPhotoResult => {
+  if (userRole !== 'MAS_ANGGIT') {
+    return result
+  }
+
+  const explicitAngsuranCount = result.timeline.reduce((total, item) => {
+    return total + countAngsuranNamesFromActivity(item.activity)
+  }, 0)
+
+  const visitAsAngsuranCount = result.timeline.reduce((total, item) => {
+    const visitCounts = countVisitTargetsFromActivity(item.activity)
+    return total + visitCounts.marketingPersonal + visitCounts.marketingB2B
+  }, 0)
+
+  return {
+    ...result,
+    counts: {
+      ...result.counts,
+      angsuran: Math.max(result.counts.angsuran, explicitAngsuranCount + visitAsAngsuranCount),
+      marketingPersonal: 0,
+      marketingB2B: 0
+    }
+  }
 }
 
 const stripBulletPrefix = (value: string) => value.replace(/^-+\s*/, '').trim()
@@ -392,21 +508,6 @@ const countAngsuranNamesFromActivity = (activity: string) => {
   return 0
 }
 
-const classifyMarketingActivity = (activity: string) => {
-  const normalized = normalizeBusinessTerms(activity).toLowerCase()
-  const markerField = classifyFieldFromMarker(normalized)
-
-  if (markerField === 'marketingB2B' || markerField === 'marketingPersonal') {
-    return markerField
-  }
-
-  if (!/\b(marketing|kunjungan)\b/.test(normalized)) {
-    return null
-  }
-
-  return hasBusinessContext(normalized) ? 'marketingB2B' : 'marketingPersonal'
-}
-
 const inferStructuredCounts = (
   timeline: TimelineEntry[],
   counts: StructuredCounts
@@ -430,44 +531,45 @@ const inferStructuredCounts = (
     inferredCounts.aqod = inferredAqod
   }
 
-  const inferredMarkerAngsuran = timeline.reduce((total, item) => {
-    return total + (classifyFieldFromMarker(item.activity) === 'angsuran' ? 1 : 0)
-  }, 0)
+  const inferredVisitCounts = timeline.reduce(
+    (counts, item) => {
+      const visitCounts = countVisitTargetsFromActivity(item.activity)
 
-  if (inferredMarkerAngsuran > inferredCounts.angsuran) {
-    inferredCounts.angsuran = inferredMarkerAngsuran
+      counts.angsuran += visitCounts.angsuran
+      counts.fundingPersonal += visitCounts.fundingPersonal
+      counts.fundingB2B += visitCounts.fundingB2B
+      counts.marketingPersonal += visitCounts.marketingPersonal
+      counts.marketingB2B += visitCounts.marketingB2B
+
+      return counts
+    },
+    {
+      angsuran: 0,
+      fundingPersonal: 0,
+      fundingB2B: 0,
+      marketingPersonal: 0,
+      marketingB2B: 0
+    }
+  )
+
+  if (inferredVisitCounts.angsuran > inferredCounts.angsuran) {
+    inferredCounts.angsuran = inferredVisitCounts.angsuran
   }
 
-  const inferredFundingPersonal = timeline.reduce((total, item) => {
-    return total + (classifyFieldFromMarker(item.activity) === 'fundingPersonal' ? 1 : 0)
-  }, 0)
-
-  if (inferredFundingPersonal > inferredCounts.fundingPersonal) {
-    inferredCounts.fundingPersonal = inferredFundingPersonal
+  if (inferredVisitCounts.fundingPersonal > inferredCounts.fundingPersonal) {
+    inferredCounts.fundingPersonal = inferredVisitCounts.fundingPersonal
   }
 
-  const inferredFundingB2B = timeline.reduce((total, item) => {
-    return total + (classifyFieldFromMarker(item.activity) === 'fundingB2B' ? 1 : 0)
-  }, 0)
-
-  if (inferredFundingB2B > inferredCounts.fundingB2B) {
-    inferredCounts.fundingB2B = inferredFundingB2B
+  if (inferredVisitCounts.fundingB2B > inferredCounts.fundingB2B) {
+    inferredCounts.fundingB2B = inferredVisitCounts.fundingB2B
   }
 
-  const inferredMarketingPersonal = timeline.reduce((total, item) => {
-    return total + (classifyMarketingActivity(item.activity) === 'marketingPersonal' ? 1 : 0)
-  }, 0)
-
-  if (inferredMarketingPersonal > inferredCounts.marketingPersonal) {
-    inferredCounts.marketingPersonal = inferredMarketingPersonal
+  if (inferredVisitCounts.marketingPersonal > inferredCounts.marketingPersonal) {
+    inferredCounts.marketingPersonal = inferredVisitCounts.marketingPersonal
   }
 
-  const inferredMarketingB2B = timeline.reduce((total, item) => {
-    return total + (classifyMarketingActivity(item.activity) === 'marketingB2B' ? 1 : 0)
-  }, 0)
-
-  if (inferredMarketingB2B > inferredCounts.marketingB2B) {
-    inferredCounts.marketingB2B = inferredMarketingB2B
+  if (inferredVisitCounts.marketingB2B > inferredCounts.marketingB2B) {
+    inferredCounts.marketingB2B = inferredVisitCounts.marketingB2B
   }
 
   return inferredCounts
@@ -520,7 +622,12 @@ const normalizeStructuredResult = (payload: any): StructuredPhotoResult => {
   }
 }
 
-const callGeminiStructuring = async (fullImageBase64: string, headerImageBase64: string, visionText: string) => {
+const callGeminiStructuring = async (
+  fullImageBase64: string,
+  headerImageBase64: string,
+  visionText: string,
+  userRole?: SupportedUserRole | null
+) => {
   const apiKey = process.env.GEMINI_API_KEY
 
   if (!apiKey) {
@@ -589,6 +696,11 @@ Aturan penting:
   - "A" = angsuran
 - Kode "L/F/A" dipakai sebagai petunjuk klasifikasi count, terutama pada aktivitas kunjungan.
 - Jika aktivitas berkonteks toko/usaha/instansi seperti "UD", "TB", "TK", "motor", "cell", "salon", "perabot", arahkan "L/F" ke field B2B.
+- Jika satu baris kunjungan berisi beberapa target dipisahkan koma, setiap bagian setelah koma adalah kunjungan terpisah.
+- Contoh: "Kunjungan Joko Saptono, Puji, Warung Mak'e, Warung Pojok L" berarti 4 kunjungan:
+  - 2 marketing personal: Joko Saptono, Puji
+  - 2 marketing B2B: Warung Mak'e, Warung Pojok
+- Jika ada target kunjungan yang bertuliskan "<B2B>", hitung sebagai B2B.
 - "Berangkat Survey" dan "Sampai tempat survey ..." masuk timeline, tetapi TIDAK menambah hitungan survey.
 - Hitung survey hanya jika barisnya adalah kegiatan survey yang benar-benar dilakukan, misalnya "Survey Ruswanti".
 - Hitung angsuran bila ada aktivitas "ambil/setor/tagih angsuran", termasuk jika muncul di dalam bullet list pada satu blok waktu.
@@ -602,6 +714,13 @@ Aturan penting:
 
 OCR bantuan dari Vision:
 ${visionText || '(tidak ada OCR bantuan)'}
+
+Aturan berdasarkan role user:
+${
+  userRole === 'MAS_ANGGIT'
+    ? '- Khusus user MAS_ANGGIT, aktivitas "kunjungan" lebih mengarah ke angsuran. Hitung setiap target kunjungan sebagai angsuran, bukan marketing.'
+    : '- Untuk role selain MAS_ANGGIT, gunakan aturan umum di atas.'
+}
 `.trim()
 
   const schema = {
@@ -737,6 +856,11 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('photo')
+    const userRoleValue = formData.get('userRole')
+    const userRole =
+      typeof userRoleValue === 'string' && userRoleValue.trim()
+        ? userRoleValue.trim()
+        : undefined
 
     if (!(file instanceof File)) {
       return NextResponse.json(
@@ -785,7 +909,16 @@ export async function POST(request: NextRequest) {
     let structured: StructuredPhotoResult | null = null
     let geminiErrorMessage = ''
     try {
-      structured = await callGeminiStructuring(toBase64(geminiImage), toBase64(headerCrop), visionText)
+      structured = await callGeminiStructuring(
+        toBase64(geminiImage),
+        toBase64(headerCrop),
+        visionText,
+        userRole
+      )
+
+      if (structured) {
+        structured = applyStructuredRoleRules(structured, userRole)
+      }
     } catch (error) {
       geminiErrorMessage = getErrorMessage(error)
       console.error('Gemini structuring error:', error)

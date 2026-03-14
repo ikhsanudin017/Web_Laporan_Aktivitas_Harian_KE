@@ -12,6 +12,8 @@ export interface ProcessedPhotoReport {
   summary: string
 }
 
+type SupportedUserRole = 'MAS_ANGGIT' | string
+
 const MONTH_MAP: Record<string, string> = {
   januari: '01',
   februari: '02',
@@ -61,6 +63,7 @@ const BUSINESS_ENTITY_PATTERNS = [
   /\bcv\b/i,
   /\bpt\b/i,
   /\btoko\b/i,
+  /\bwarung\b/i,
   /\bmotor\b/i,
   /\bcell\b/i,
   /\bsalon\b/i,
@@ -107,6 +110,91 @@ const classifyFieldFromMarker = (
   }
 
   return null
+}
+
+const cleanVisitTarget = (value: string) =>
+  normalizeBusinessTerms(value)
+    .replace(/^[-:.,\s]+/, '')
+    .replace(/[-:.,\s]+$/, '')
+    .replace(/\b[alf]\b$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const splitVisitTargets = (activity: string) => {
+  const normalized = normalizeBusinessTerms(activity)
+    .replace(/<\s*b2b\s*>/gi, ' B2B ')
+    .replace(/\b(marketing|kunjungan)\b/gi, '|')
+
+  return normalized
+    .split(/\n+/)
+    .flatMap((line) => line.split('|'))
+    .flatMap((segment) => segment.split(/\s*(?:,|;|\/|\+|&|\bdan\b)\s*/i))
+    .map(cleanVisitTarget)
+    .filter(Boolean)
+}
+
+const countVisitTargetsFromActivity = (activity: string) => {
+  const normalized = normalizeBusinessTerms(activity)
+  const markerField = classifyFieldFromMarker(normalized)
+  const isVisitLikeActivity = /\b(marketing|kunjungan)\b/i.test(normalized)
+
+  if (!isVisitLikeActivity) {
+    return {
+      angsuran: 0,
+      fundingPersonal: 0,
+      fundingB2B: 0,
+      marketingPersonal: 0,
+      marketingB2B: 0
+    }
+  }
+
+  const targets = splitVisitTargets(activity)
+
+  if (targets.length === 0) {
+    return {
+      angsuran: 0,
+      fundingPersonal: 0,
+      fundingB2B: 0,
+      marketingPersonal: 0,
+      marketingB2B: 0
+    }
+  }
+
+  return targets.reduce(
+    (counts, target) => {
+      const isB2BTarget = hasBusinessContext(target) || /\bb2b\b/i.test(target)
+
+      if (markerField === 'angsuran') {
+        counts.angsuran += 1
+        return counts
+      }
+
+      if (markerField === 'fundingB2B' || (markerField === 'fundingPersonal' && isB2BTarget)) {
+        counts.fundingB2B += 1
+        return counts
+      }
+
+      if (markerField === 'fundingPersonal') {
+        counts.fundingPersonal += 1
+        return counts
+      }
+
+      if (isB2BTarget) {
+        counts.marketingB2B += 1
+        return counts
+      }
+
+      counts.marketingPersonal += 1
+      return counts
+    },
+    {
+      angsuran: 0,
+      fundingPersonal: 0,
+      fundingB2B: 0,
+      marketingPersonal: 0,
+      marketingB2B: 0
+    }
+  )
 }
 
 const normalizeWhitespace = (value: string) =>
@@ -378,13 +466,31 @@ const incrementField = (
   target[field] = (target[field] || 0) + 1
 }
 
-const countDetectedFields = (timelineLines: string[], availableFields: string[]) => {
+const incrementFieldBy = (
+  target: Partial<Record<ReportSuggestionKey, number>>,
+  field: ReportSuggestionKey,
+  amount: number,
+  availableFields: string[]
+) => {
+  if (!availableFields.includes(field) || amount <= 0) {
+    return
+  }
+
+  target[field] = (target[field] || 0) + amount
+}
+
+const countDetectedFields = (
+  timelineLines: string[],
+  availableFields: string[],
+  userRole?: SupportedUserRole
+) => {
   const counts: Partial<Record<ReportSuggestionKey, number>> = {}
 
   timelineLines.forEach((line) => {
     const content = normalizeBusinessTerms(removeTimePrefix(line).toLowerCase())
     const compact = content.replace(/[^a-z0-9\s']/g, ' ').replace(/\s+/g, ' ').trim()
     const markerField = classifyFieldFromMarker(content)
+    const visitCounts = countVisitTargetsFromActivity(content)
 
     const isTravelSurveyLine =
       /^(berangkat|sampai|menuju|ke tempat|perjalanan)/.test(compact) &&
@@ -407,6 +513,34 @@ const countDetectedFields = (timelineLines: string[], availableFields: string[])
 
     if (/\baqod\b/.test(compact)) {
       incrementField(counts, 'aqod', availableFields)
+      return
+    }
+
+    const hasVisitCounts =
+      visitCounts.angsuran > 0 ||
+      visitCounts.fundingPersonal > 0 ||
+      visitCounts.fundingB2B > 0 ||
+      visitCounts.marketingPersonal > 0 ||
+      visitCounts.marketingB2B > 0
+
+    if (hasVisitCounts) {
+      const anggitVisitAsAngsuran =
+        userRole === 'MAS_ANGGIT' ? visitCounts.marketingPersonal + visitCounts.marketingB2B : 0
+
+      incrementFieldBy(
+        counts,
+        'angsuran',
+        visitCounts.angsuran + anggitVisitAsAngsuran,
+        availableFields
+      )
+      incrementFieldBy(counts, 'fundingPersonal', visitCounts.fundingPersonal, availableFields)
+      incrementFieldBy(counts, 'fundingB2B', visitCounts.fundingB2B, availableFields)
+
+      if (userRole !== 'MAS_ANGGIT') {
+        incrementFieldBy(counts, 'marketingPersonal', visitCounts.marketingPersonal, availableFields)
+        incrementFieldBy(counts, 'marketingB2B', visitCounts.marketingB2B, availableFields)
+      }
+
       return
     }
 
@@ -491,14 +625,15 @@ const countDetectedFields = (timelineLines: string[], availableFields: string[])
 export const processPhotoOcrText = (
   rawText: string,
   availableFields: string[],
-  currentData: Partial<Record<ReportSuggestionKey, string | number>> = {}
+  currentData: Partial<Record<ReportSuggestionKey, string | number>> = {},
+  userRole?: SupportedUserRole
 ): ProcessedPhotoReport => {
   const cleanedText = normalizeWhitespace(rawText)
   const detectedDate = extractDetectedDate(cleanedText)
   const timelineLines = dedupeLines(splitIntoRawLines(cleanedText))
   const formattedTimelineLines = timelineLines.map((line, index) => `${index + 1}. ${formatTimelineLine(line)}`)
   const timelineText = formattedTimelineLines.join('\n')
-  const detectedCounts = countDetectedFields(timelineLines, availableFields)
+  const detectedCounts = countDetectedFields(timelineLines, availableFields, userRole)
   const suggestions: Partial<Record<ReportSuggestionKey, string | number>> = {}
 
   if (timelineText && availableFields.includes('timelineHarian')) {
