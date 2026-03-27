@@ -424,30 +424,16 @@ const applyStructuredRoleRules = (
     return total + countAngsuranNamesFromActivity(item.activity)
   }, 0)
 
-  const visitCounts = result.timeline.reduce(
-    (accumulator, item) => {
-      const itemVisitCounts = countVisitTargetsFromActivity(item.activity)
-
-      return {
-        marketingPersonal: accumulator.marketingPersonal + itemVisitCounts.marketingPersonal,
-        marketingB2B: accumulator.marketingB2B + itemVisitCounts.marketingB2B
-      }
-    },
-    {
-      marketingPersonal: 0,
-      marketingB2B: 0
-    }
-  )
-
-  const visitAsAngsuranCount = visitCounts.marketingPersonal
-  const visitAsB2BCount = visitCounts.marketingB2B
+  const visitAsAngsuranCount = result.timeline.reduce((total, item) => {
+    const visitCounts = countVisitTargetsFromActivity(item.activity)
+    return total + visitCounts.marketingPersonal + visitCounts.marketingB2B
+  }, 0)
 
   return {
     ...result,
     counts: {
       ...result.counts,
       angsuran: Math.max(result.counts.angsuran, explicitAngsuranCount + visitAsAngsuranCount),
-      b2b: Math.max(result.counts.b2b, visitAsB2BCount),
       marketingPersonal: 0,
       marketingB2B: 0
     }
@@ -732,7 +718,7 @@ ${visionText || '(tidak ada OCR bantuan)'}
 Aturan berdasarkan role user:
 ${
   userRole === 'MAS_ANGGIT'
-    ? '- Khusus user MAS_ANGGIT, aktivitas "kunjungan" personal dihitung sebagai angsuran. Jika kunjungan jelas bertanda B2B atau berkonteks usaha/toko, hitung ke field b2b, bukan angsuran.'
+    ? '- Khusus user MAS_ANGGIT, aktivitas "kunjungan" lebih mengarah ke angsuran. Hitung setiap target kunjungan sebagai angsuran, bukan marketing.'
     : '- Untuk role selain MAS_ANGGIT, gunakan aturan umum di atas.'
 }
 `.trim()

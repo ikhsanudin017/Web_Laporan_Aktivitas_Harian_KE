@@ -141,13 +141,6 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
         placeholder: '0'
       },
       {
-        name: 'b2b',
-        label: 'B2B',
-        type: 'dropdown-number',
-        required: false,
-        placeholder: '0'
-      },
-      {
         name: 'survey',
         label: 'Survey',
         type: 'dropdown-number',

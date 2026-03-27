@@ -524,8 +524,8 @@ const countDetectedFields = (
       visitCounts.marketingB2B > 0
 
     if (hasVisitCounts) {
-      const anggitVisitAsAngsuran = userRole === 'MAS_ANGGIT' ? visitCounts.marketingPersonal : 0
-      const anggitVisitAsB2B = userRole === 'MAS_ANGGIT' ? visitCounts.marketingB2B : 0
+      const anggitVisitAsAngsuran =
+        userRole === 'MAS_ANGGIT' ? visitCounts.marketingPersonal + visitCounts.marketingB2B : 0
 
       incrementFieldBy(
         counts,
@@ -533,7 +533,6 @@ const countDetectedFields = (
         visitCounts.angsuran + anggitVisitAsAngsuran,
         availableFields
       )
-      incrementFieldBy(counts, 'b2b', anggitVisitAsB2B, availableFields)
       incrementFieldBy(counts, 'fundingPersonal', visitCounts.fundingPersonal, availableFields)
       incrementFieldBy(counts, 'fundingB2B', visitCounts.fundingB2B, availableFields)
 
