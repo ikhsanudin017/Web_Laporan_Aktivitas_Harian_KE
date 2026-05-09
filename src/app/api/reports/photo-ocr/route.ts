@@ -65,6 +65,63 @@ const toBase64 = (buffer: Buffer) => buffer.toString('base64')
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
 
+const getVisionAuthMode = () => {
+  if (process.env.GOOGLE_CLOUD_VISION_API_KEY) {
+    return 'api_key'
+  }
+
+  if (process.env.GOOGLE_CLOUD_SERVICE_ACCOUNT_JSON) {
+    return 'service_account_json'
+  }
+
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    return 'application_default_credentials'
+  }
+
+  return 'none'
+}
+
+const buildProviderError = (
+  provider: 'vision' | 'gemini',
+  status: number,
+  payload: any,
+  extra: Record<string, string | number | boolean | null | undefined> = {}
+) => {
+  const providerError = payload?.error
+  const details = Array.isArray(providerError?.details) ? providerError.details : []
+  const reasons = details
+    .flatMap((detail: any) => {
+      if (Array.isArray(detail?.violations)) {
+        return detail.violations.map((violation: any) => violation?.type || violation?.description)
+      }
+
+      if (Array.isArray(detail?.errors)) {
+        return detail.errors.map((entry: any) => entry?.reason || entry?.message)
+      }
+
+      return detail?.reason || detail?.message || []
+    })
+    .filter(Boolean)
+
+  const message = providerError?.message || `${provider} request gagal`
+  const code = providerError?.code || status
+  const statusText = providerError?.status
+  const suffix = [
+    `provider=${provider}`,
+    `http=${status}`,
+    `code=${code}`,
+    statusText ? `status=${statusText}` : null,
+    reasons.length ? `reason=${reasons.join(',')}` : null,
+    ...Object.entries(extra).map(([key, value]) =>
+      value === undefined || value === null || value === '' ? null : `${key}=${String(value)}`
+    )
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return new Error(`${message} [${suffix}]`)
+}
+
 const hasVisionCredentials = () =>
   Boolean(
     process.env.GOOGLE_CLOUD_VISION_API_KEY ||
@@ -200,13 +257,19 @@ const callVisionOcr = async (base64Image: string) => {
   const json = await response.json()
 
   if (!response.ok) {
-    throw new Error(json?.error?.message || 'Vision OCR request gagal')
+    throw buildProviderError('vision', response.status, json, {
+      auth: getVisionAuthMode(),
+      billingDisabledCache: visionBillingDisabled
+    })
   }
 
   const annotation = json?.responses?.[0]
 
   if (annotation?.error?.message) {
-    throw new Error(annotation.error.message)
+    throw buildProviderError('vision', response.status, { error: annotation.error }, {
+      auth: getVisionAuthMode(),
+      billingDisabledCache: visionBillingDisabled
+    })
   }
 
   return (annotation?.fullTextAnnotation?.text || '').trim()
@@ -836,7 +899,9 @@ ${
   const responseJson = await response.json()
 
   if (!response.ok) {
-    throw new Error(responseJson?.error?.message || 'Gemini request gagal')
+    throw buildProviderError('gemini', response.status, responseJson, {
+      model: GEMINI_MODEL
+    })
   }
 
   const text = extractGeminiText(responseJson)

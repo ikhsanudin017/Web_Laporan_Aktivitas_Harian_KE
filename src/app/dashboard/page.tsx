@@ -38,6 +38,12 @@ type StructuredPhotoResult = {
   notes?: string
 }
 
+type HistoryReportMonthGroup = {
+  key: string
+  label: string
+  reports: HistoryReport[]
+}
+
 const STRUCTURED_COUNT_LABELS: Record<string, string> = {
   survey: 'survey',
   angsuran: 'angsuran',
@@ -54,6 +60,8 @@ const STRUCTURED_COUNT_LABELS: Record<string, string> = {
   b2b: 'B2B',
   maintenance: 'maintenance'
 }
+
+const DROPDOWN_NUMBER_MAX = 50
 
 const formatDetectedDate = (dateString: string) =>
   new Date(`${dateString}T00:00:00`).toLocaleDateString('id-ID', {
@@ -201,6 +209,126 @@ const buildStructuredSummary = (structured: StructuredPhotoResult) => {
   return `Foto berhasil diproses: ${summaryParts.join(', ')}`
 }
 
+const countPatternMatches = (value: string, pattern: RegExp) => value.match(pattern)?.length || 0
+
+const isLowQualityOcrText = (value: string) => {
+  const normalized = value.replace(/\r/g, '\n').trim()
+
+  if (!normalized) {
+    return true
+  }
+
+  const lineCount = normalized.split('\n').filter((line) => line.trim()).length
+  const timeCount = countPatternMatches(normalized, /\b\d{1,2}[.:]\d{2}\b/g)
+  const businessCount = countPatternMatches(
+    normalized.toLowerCase(),
+    /\b(angsuran|tabungan|funding|survey|aqod|akun?d|kunjungan|kantor|selesai|sholat|istirahat)\b/g
+  )
+  const punctuationCount = countPatternMatches(normalized, /[=_\\\/[\]{}|~`^]+/g)
+  const uppercaseNoiseCount = countPatternMatches(normalized, /\b[A-Z]{4,}\b/g)
+
+  if (normalized.length >= 60 && timeCount === 0 && businessCount === 0) {
+    return true
+  }
+
+  if (lineCount >= 4 && timeCount === 0 && businessCount < 2) {
+    return true
+  }
+
+  if (punctuationCount >= 6 && businessCount < 2) {
+    return true
+  }
+
+  if (uppercaseNoiseCount >= 6 && businessCount < 2) {
+    return true
+  }
+
+  return false
+}
+
+const isLowQualityStructuredResult = (structured: StructuredPhotoResult, previewText: string) => {
+  const timeline = Array.isArray(structured.timeline) ? structured.timeline : []
+  const timelineWithTime = timeline.filter((item) => typeof item?.time === 'string' && /\d/.test(item.time || '')).length
+  const positiveCounts = Object.values(structured.counts || {}).filter((value) => Number(value) > 0).length
+  const hasDate = Boolean(structured.detectedDate || structured.displayDate)
+
+  if (timeline.length >= 2 && timelineWithTime >= 2) {
+    return false
+  }
+
+  if (positiveCounts >= 1 && !isLowQualityOcrText(previewText)) {
+    return false
+  }
+
+  if (hasDate && timeline.length >= 1 && !isLowQualityOcrText(previewText)) {
+    return false
+  }
+
+  return isLowQualityOcrText(previewText)
+}
+
+const parseReportDate = (dateString: string) => {
+  const dateObj = new Date(dateString.includes('T') ? dateString : `${dateString}T00:00:00`)
+  return Number.isNaN(dateObj.getTime()) ? null : dateObj
+}
+
+const getReportDateSortTime = (dateString: string) => parseReportDate(dateString)?.getTime() ?? 0
+
+const getReportMonthKey = (report: HistoryReport) => {
+  const dateObj = parseReportDate(report.date)
+
+  if (!dateObj) {
+    return 'tanggal-tidak-valid'
+  }
+
+  const year = dateObj.toLocaleDateString('id-ID', {
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta'
+  })
+  const month = dateObj.toLocaleDateString('id-ID', {
+    month: '2-digit',
+    timeZone: 'Asia/Jakarta'
+  })
+
+  return `${year}-${month}`
+}
+
+const getReportMonthLabel = (report: HistoryReport) => {
+  const dateObj = parseReportDate(report.date)
+
+  if (!dateObj) {
+    return 'Tanggal tidak valid'
+  }
+
+  return dateObj.toLocaleDateString('id-ID', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Jakarta'
+  })
+}
+
+const groupReportsByMonth = (reports: HistoryReport[]) => {
+  const groupsByKey: Record<string, HistoryReportMonthGroup> = {}
+
+  return [...reports]
+    .sort((firstReport, secondReport) => getReportDateSortTime(secondReport.date) - getReportDateSortTime(firstReport.date))
+    .reduce<HistoryReportMonthGroup[]>((groups, report) => {
+      const monthKey = getReportMonthKey(report)
+
+      if (!groupsByKey[monthKey]) {
+        groupsByKey[monthKey] = {
+          key: monthKey,
+          label: getReportMonthLabel(report),
+          reports: []
+        }
+        groups.push(groupsByKey[monthKey])
+      }
+
+      groupsByKey[monthKey].reports.push(report)
+      return groups
+    }, [])
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [reportData, setReportData] = useState<any>({})
@@ -243,6 +371,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'input' | 'history'>('input')
   const [historyReports, setHistoryReports] = useState<HistoryReport[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [expandedHistoryMonths, setExpandedHistoryMonths] = useState<Record<string, boolean>>({})
   const [editingReport, setEditingReport] = useState<HistoryReport | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -648,6 +777,12 @@ export default function DashboardPage() {
         const suggestions = buildStructuredSuggestions(structured, availableFields, baseReportData)
         const previewText = buildStructuredPreviewText(structured) || responseData.text || ''
 
+        if (isLowQualityStructuredResult(structured, previewText)) {
+          throw new Error(
+            'Hasil OCR terdeteksi tidak stabil, jadi tidak saya masukkan ke form. Biasanya ini terjadi saat Vision belum aktif billing dan Gemini sedang limit.'
+          )
+        }
+
         setPhotoExtractedText(previewText)
         setReportData(() => ({
           ...baseReportData,
@@ -664,6 +799,12 @@ export default function DashboardPage() {
 
         nextSummary = buildStructuredSummary(structured)
       } else {
+        if (isLowQualityOcrText(responseData.text || '')) {
+          throw new Error(
+            'OCR fallback menghasilkan teks yang kualitasnya rendah, jadi saya blok agar form tidak terisi data ngawur. Cek billing Vision atau tunggu quota Gemini tersedia lagi.'
+          )
+        }
+
         const processed = processPhotoOcrText(
           responseData.text || '',
           availableFields,
@@ -717,8 +858,12 @@ export default function DashboardPage() {
       setMessage(nextSummary)
     } catch (error) {
       console.error('Photo OCR error:', error)
-      setPhotoSummary('OCR belum berhasil membaca foto. Coba foto yang lebih terang dan tegak lurus.')
-      setMessage('Gagal memproses foto. Coba ulangi dengan gambar yang lebih jelas.')
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : 'OCR belum berhasil membaca foto. Coba ulangi dengan gambar yang lebih jelas.'
+      setPhotoSummary(errorMessage)
+      setMessage(errorMessage)
     } finally {
       setPhotoProcessing(false)
     }
@@ -852,6 +997,13 @@ export default function DashboardPage() {
   const formConfig = FORM_CONFIGS[user.role]
   const getFieldLabel = (fieldName: string) => {
     return formConfig?.fields.find((field) => field.name === fieldName)?.label || fieldName
+  }
+  const historyReportMonthGroups = groupReportsByMonth(historyReports)
+  const toggleHistoryMonth = (monthKey: string, isExpandedByDefault: boolean) => {
+    setExpandedHistoryMonths((prev) => ({
+      ...prev,
+      [monthKey]: !(prev[monthKey] ?? isExpandedByDefault)
+    }))
   }
 
   if (!formConfig) {
@@ -1266,12 +1418,15 @@ export default function DashboardPage() {
                                   handleFieldChange(field.name, '')
                                 } else {
                                   const numValue = parseInt(value)
-                                  handleFieldChange(field.name, isNaN(numValue) ? '' : numValue)
+                                  handleFieldChange(
+                                    field.name,
+                                    isNaN(numValue) ? '' : Math.max(0, Math.min(numValue, DROPDOWN_NUMBER_MAX))
+                                  )
                                 }
                               }}
                               list={`${field.name}-datalist`}
                               min="0"
-                              max="30"
+                              max={String(DROPDOWN_NUMBER_MAX)}
                               className="mt-1 block w-full px-3 py-2 pr-10 sm:pr-12 border border-gray-300 rounded-lg shadow-sm 
                                        focus:outline-none focus:ring-2 focus:ring-ksu-yellow focus:border-ksu-orange 
                                        hover:border-ksu-orange hover:shadow-md
@@ -1281,7 +1436,7 @@ export default function DashboardPage() {
                                        text-sm sm:text-base font-medium"
                             />
                             <datalist id={`${field.name}-datalist`}>
-                              {Array.from({length: 31}, (_, i) => (
+                              {Array.from({ length: DROPDOWN_NUMBER_MAX + 1 }, (_, i) => (
                                 <option key={i} value={i} label={`${i}`} />
                               ))}
                             </datalist>
@@ -1310,7 +1465,7 @@ export default function DashboardPage() {
                               <svg className="w-3 h-3 group-hover:animate-pulse" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                               </svg>
-                              <span className="text-xs">Klik untuk pilihan 0-30</span>
+                              <span className="text-xs">{`Klik untuk pilihan 0-${DROPDOWN_NUMBER_MAX}`}</span>
                             </div>
                             {(reportData[field.name] !== undefined && reportData[field.name] !== null && reportData[field.name] !== '') && (
                               <div className="text-green-600 font-bold flex items-center space-x-1 animate-fadeIn">
@@ -1399,11 +1554,11 @@ export default function DashboardPage() {
               </form>
             </div>
           ) : (
-            // HISTORY TAB - Sama seperti kode asli, tidak ada perubahan di sini
+            // HISTORY TAB - Dikelompokkan per bulan agar riwayat lebih mudah dipindai
             <div className="bg-white shadow rounded-lg overflow-hidden">
               <div className="px-3 sm:px-6 py-4 border-b border-gray-200 flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
                 <h2 className="text-base sm:text-lg font-medium text-gray-900">
-                  History Laporan Saya ({historyReports.length} records)
+                  History Laporan Saya ({historyReports.length} records, {historyReportMonthGroups.length} bulan)
                 </h2>
                 <button
                   onClick={exportMyReports}
@@ -1416,7 +1571,45 @@ export default function DashboardPage() {
                 </button>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                {historyReportMonthGroups.length > 0 && (
+                  <div className="min-w-full divide-y divide-gray-200">
+                    {historyReportMonthGroups.map((monthGroup, monthIndex) => {
+                      const isMonthExpanded = expandedHistoryMonths[monthGroup.key] ?? monthIndex === 0
+
+                      return (
+                        <div key={monthGroup.key} className="bg-white">
+                          <button
+                            type="button"
+                            onClick={() => toggleHistoryMonth(monthGroup.key, monthIndex === 0)}
+                            className="w-full px-4 sm:px-6 py-3 bg-amber-50 hover:bg-yellow-50 border-b border-gray-200 flex items-center justify-between text-left transition-colors duration-200"
+                            aria-expanded={isMonthExpanded}
+                            aria-controls={`history-month-${monthGroup.key}`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <svg
+                                className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isMonthExpanded ? 'rotate-90' : 'rotate-0'}`}
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                                aria-hidden="true"
+                              >
+                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                              </svg>
+                              <div>
+                                <div className="text-sm sm:text-base font-semibold text-gray-900">
+                                  {monthGroup.label}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {monthGroup.reports.length} laporan
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-xs sm:text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+                              {isMonthExpanded ? 'Tutup' : 'Buka'}
+                            </span>
+                          </button>
+
+                          {isMonthExpanded && (
+                            <table id={`history-month-${monthGroup.key}`} className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1450,7 +1643,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {historyReports.map((report, index) => (
+                    {monthGroup.reports.map((report, index) => (
                       <tr key={report.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {index + 1}
@@ -1623,8 +1816,14 @@ export default function DashboardPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
-                
+                            </table>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
                 {historyReports.length === 0 && !historyLoading && (
                   <div className="text-center py-8 text-gray-500">
                     Belum ada data laporan. Silakan input laporan pertama Anda.
