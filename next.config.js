@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['@prisma/client', 'bcryptjs', 'pg', 'sharp', 'google-auth-library'],
+  serverExternalPackages: ['@prisma/client', 'bcryptjs', 'pg', 'sharp', 'google-auth-library', '@heyputer/puter.js'],
   images: {
     domains: ['localhost'],
     unoptimized: true

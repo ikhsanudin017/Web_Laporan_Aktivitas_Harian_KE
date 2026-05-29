@@ -15,6 +15,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "puter:login": "node scripts/setup-puter-token.mjs",
     "postinstall": "prisma generate",
     "vercel-build": "prisma generate && prisma db push && npm run db:seed && next build"
   },
@@ -23,6 +24,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@heyputer/puter.js": "^2.5.0",
     "@hookform/resolvers": "^5.2.1",
     "@next-auth/prisma-adapter": "^1.0.7",
     "@prisma/adapter-pg": "^6.13.0",

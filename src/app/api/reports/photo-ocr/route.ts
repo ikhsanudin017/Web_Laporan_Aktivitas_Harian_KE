@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import { GoogleAuth } from 'google-auth-library'
+import { init as initPuter } from '@heyputer/puter.js/src/init.cjs'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -57,13 +58,44 @@ const DEFAULT_COUNTS: StructuredCounts = {
 }
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+const PUTER_GEMINI_MODEL = process.env.PUTER_GEMINI_MODEL || 'google/gemini-2.5-flash'
 const VISION_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
 let visionBillingDisabled = false
+
+type PuterClient = {
+  ai: {
+    img2txt: (source: File | Blob, options?: Record<string, unknown>) => Promise<string>
+    chat: (
+      prompt: string,
+      media: File | Blob,
+      options?: Record<string, unknown>
+    ) => Promise<unknown>
+  }
+}
+
+let puterClient: PuterClient | null = null
 
 const toBase64 = (buffer: Buffer) => buffer.toString('base64')
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
+
+const getPuterClient = () => {
+  const token = process.env.PUTER_AUTH_TOKEN
+
+  if (!token) {
+    return null
+  }
+
+  if (!puterClient) {
+    puterClient = initPuter(token) as PuterClient
+  }
+
+  return puterClient
+}
+
+const bufferToImageFile = (buffer: Buffer, name: string, type = 'image/jpeg') =>
+  new File([new Blob([buffer], { type })], name, { type })
 
 const getVisionAuthMode = () => {
   if (process.env.GOOGLE_CLOUD_VISION_API_KEY) {
@@ -685,19 +717,7 @@ const normalizeStructuredResult = (payload: any): StructuredPhotoResult => {
   }
 }
 
-const callGeminiStructuring = async (
-  fullImageBase64: string,
-  headerImageBase64: string,
-  visionText: string,
-  userRole?: SupportedUserRole | null
-) => {
-  const apiKey = process.env.GEMINI_API_KEY
-
-  if (!apiKey) {
-    return null
-  }
-
-  const prompt = `
+const buildStructuringPrompt = (visionText: string, userRole?: SupportedUserRole | null) => `
 Anda mengekstrak catatan aktivitas harian tulisan tangan berbahasa Indonesia dari foto.
 
 Tujuan:
@@ -786,7 +806,7 @@ ${
 }
 `.trim()
 
-  const schema = {
+const STRUCTURED_RESPONSE_SCHEMA = {
     type: 'object',
     properties: {
       displayDate: {
@@ -859,6 +879,78 @@ ${
     required: ['displayDate', 'detectedDate', 'normalizedTranscript', 'timeline', 'counts', 'notes']
   }
 
+const extractJsonObjectText = (value: string) => {
+  const cleaned = value
+    .trim()
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/i, '')
+    .trim()
+
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+    return cleaned
+  }
+
+  const start = cleaned.indexOf('{')
+  const end = cleaned.lastIndexOf('}')
+
+  if (start >= 0 && end > start) {
+    return cleaned.slice(start, end + 1)
+  }
+
+  return cleaned
+}
+
+const extractPuterText = (response: unknown) => {
+  if (typeof response === 'string') {
+    return response.trim()
+  }
+
+  const payload = response as any
+  const content = payload?.message?.content
+
+  if (typeof content === 'string') {
+    return content.trim()
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .map((part) => {
+        if (typeof part === 'string') {
+          return part
+        }
+
+        return part?.text || part?.content || ''
+      })
+      .join('')
+      .trim()
+
+    if (text) {
+      return text
+    }
+  }
+
+  const firstChoiceContent = payload?.choices?.[0]?.message?.content
+  if (typeof firstChoiceContent === 'string') {
+    return firstChoiceContent.trim()
+  }
+
+  return String(response || '').trim()
+}
+
+const callGeminiStructuring = async (
+  fullImageBase64: string,
+  headerImageBase64: string,
+  visionText: string,
+  userRole?: SupportedUserRole | null
+) => {
+  const apiKey = process.env.GEMINI_API_KEY
+
+  if (!apiKey) {
+    return null
+  }
+
+  const prompt = buildStructuringPrompt(visionText, userRole)
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
@@ -890,7 +982,7 @@ ${
         generationConfig: {
           temperature: 0.1,
           responseMimeType: 'application/json',
-          responseJsonSchema: schema
+          responseJsonSchema: STRUCTURED_RESPONSE_SCHEMA
         }
       })
     }
@@ -906,6 +998,55 @@ ${
 
   const text = extractGeminiText(responseJson)
   return normalizeStructuredResult(JSON.parse(text))
+}
+
+const callPuterOcr = async (imageBuffer: Buffer) => {
+  const puter = getPuterClient()
+
+  if (!puter) {
+    return ''
+  }
+
+  const text = await puter.ai.img2txt(bufferToImageFile(imageBuffer, 'photo-ocr.jpg'), {
+    provider: process.env.PUTER_OCR_PROVIDER || 'aws-textract'
+  })
+
+  return typeof text === 'string' ? text.trim() : ''
+}
+
+const callPuterGeminiStructuring = async (
+  imageBuffer: Buffer,
+  visionText: string,
+  userRole?: SupportedUserRole | null
+) => {
+  const puter = getPuterClient()
+
+  if (!puter) {
+    return null
+  }
+
+  const prompt = `${buildStructuringPrompt(visionText, userRole)}
+
+Kembalikan hanya JSON valid sesuai schema berikut. Jangan gunakan markdown atau penjelasan tambahan:
+${JSON.stringify(STRUCTURED_RESPONSE_SCHEMA)}
+`.trim()
+
+  const response = await puter.ai.chat(
+    prompt,
+    bufferToImageFile(imageBuffer, 'photo-ocr-gemini.jpg'),
+    {
+      model: PUTER_GEMINI_MODEL,
+      temperature: 0.1
+    }
+  )
+
+  const text = extractPuterText(response)
+
+  if (!text) {
+    throw new Error('Puter Gemini tidak mengembalikan konten')
+  }
+
+  return normalizeStructuredResult(JSON.parse(extractJsonObjectText(text)))
 }
 
 export async function POST(request: NextRequest) {
@@ -954,6 +1095,7 @@ export async function POST(request: NextRequest) {
 
     let visionText = ''
     let visionErrorMessage = ''
+    let puterOcrErrorMessage = ''
     if (!visionBillingDisabled && hasVisionCredentials()) {
       try {
         const visionImage = await preprocessForVision(normalizedImage)
@@ -971,8 +1113,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (!visionText) {
+      try {
+        visionText = await callPuterOcr(geminiImage)
+
+        if (visionText) {
+          console.warn('Vision OCR fallback: berhasil memakai Puter OCR.')
+        }
+      } catch (error) {
+        puterOcrErrorMessage = getErrorMessage(error)
+        console.warn(`Puter OCR fallback dilewati: ${puterOcrErrorMessage}`)
+      }
+    }
+
     let structured: StructuredPhotoResult | null = null
     let geminiErrorMessage = ''
+    let puterGeminiErrorMessage = ''
     try {
       structured = await callGeminiStructuring(
         toBase64(geminiImage),
@@ -989,14 +1145,37 @@ export async function POST(request: NextRequest) {
       console.error('Gemini structuring error:', error)
     }
 
+    if (!structured) {
+      try {
+        structured = await callPuterGeminiStructuring(
+          geminiImage,
+          visionText,
+          userRole
+        )
+
+        if (structured) {
+          structured = applyStructuredRoleRules(structured, userRole)
+          console.warn('Gemini fallback: berhasil memakai Puter Gemini.')
+        }
+      } catch (error) {
+        puterGeminiErrorMessage = getErrorMessage(error)
+        console.error('Puter Gemini structuring error:', error)
+      }
+    }
+
     if (!visionText && !structured) {
-      const diagnostics = [visionErrorMessage, geminiErrorMessage].filter(Boolean)
+      const diagnostics = [
+        visionErrorMessage,
+        puterOcrErrorMessage,
+        geminiErrorMessage,
+        puterGeminiErrorMessage
+      ].filter(Boolean)
       return NextResponse.json(
         {
           message:
             diagnostics.length > 0
               ? `OCR foto gagal diproses. ${diagnostics.join(' | ')}`
-              : 'Google Vision OCR atau Gemini belum bisa dipakai. Set `GOOGLE_CLOUD_VISION_API_KEY` atau kredensial Google Cloud, dan `GEMINI_API_KEY`.'
+              : 'Google Vision OCR, Gemini, dan Puter fallback belum bisa dipakai. Set kredensial Google atau `PUTER_AUTH_TOKEN`.'
         },
         { status: 500 }
       )
