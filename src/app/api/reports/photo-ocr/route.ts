@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import { GoogleAuth } from 'google-auth-library'
-import { init as initPuter } from '@heyputer/puter.js/src/init.cjs'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -73,7 +72,7 @@ type PuterClient = {
   }
 }
 
-let puterClient: PuterClient | null = null
+let puterClientPromise: Promise<PuterClient | null> | null = null
 
 const toBase64 = (buffer: Buffer) => buffer.toString('base64')
 
@@ -98,18 +97,23 @@ const readProviderJson = async (response: Response, provider: 'vision' | 'gemini
   }
 }
 
-const getPuterClient = () => {
+const getPuterClient = async () => {
   const token = process.env.PUTER_AUTH_TOKEN
 
   if (!token) {
     return null
   }
 
-  if (!puterClient) {
-    puterClient = initPuter(token) as PuterClient
+  if (!puterClientPromise) {
+    puterClientPromise = import('@heyputer/puter.js/src/init.cjs')
+      .then(({ init }) => init(token) as PuterClient)
+      .catch((error) => {
+        puterClientPromise = null
+        throw error
+      })
   }
 
-  return puterClient
+  return puterClientPromise
 }
 
 const bufferToImageFile = (buffer: Buffer, name: string, type = 'image/jpeg') =>
@@ -1036,7 +1040,7 @@ const callGeminiStructuring = async (
 }
 
 const callPuterOcr = async (imageBuffer: Buffer) => {
-  const puter = getPuterClient()
+  const puter = await getPuterClient()
 
   if (!puter) {
     return ''
@@ -1054,7 +1058,7 @@ const callPuterGeminiStructuring = async (
   visionText: string,
   userRole?: SupportedUserRole | null
 ) => {
-  const puter = getPuterClient()
+  const puter = await getPuterClient()
 
   if (!puter) {
     return null
@@ -1082,6 +1086,17 @@ ${JSON.stringify(STRUCTURED_RESPONSE_SCHEMA)}
   }
 
   return normalizeStructuredResult(parseStructuredJsonText(text, 'Puter Gemini'))
+}
+
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    providerStatus: {
+      vision: hasVisionCredentials() ? getVisionAuthMode() : 'not_configured',
+      gemini: process.env.GEMINI_API_KEY ? 'configured' : 'not_configured',
+      puter: process.env.PUTER_AUTH_TOKEN ? 'configured' : 'not_configured'
+    }
+  })
 }
 
 export async function POST(request: NextRequest) {
