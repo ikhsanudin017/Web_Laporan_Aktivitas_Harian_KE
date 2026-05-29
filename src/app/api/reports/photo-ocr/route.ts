@@ -80,6 +80,24 @@ const toBase64 = (buffer: Buffer) => buffer.toString('base64')
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error)
 
+const isLikelyHtml = (value: string) => /^\s*<!doctype\s+html/i.test(value) || /^\s*<html[\s>]/i.test(value)
+
+const previewText = (value: string, maxLength = 180) =>
+  value.replace(/\s+/g, ' ').trim().slice(0, maxLength)
+
+const readProviderJson = async (response: Response, provider: 'vision' | 'gemini') => {
+  const responseText = await response.text()
+
+  try {
+    return responseText ? JSON.parse(responseText) : {}
+  } catch (error) {
+    const bodyType = isLikelyHtml(responseText) ? 'HTML' : 'non-JSON'
+    throw new Error(
+      `${provider} mengembalikan respons ${bodyType}, bukan JSON [provider=${provider} http=${response.status} body=${previewText(responseText)}]`
+    )
+  }
+}
+
 const getPuterClient = () => {
   const token = process.env.PUTER_AUTH_TOKEN
 
@@ -286,7 +304,7 @@ const callVisionOcr = async (base64Image: string) => {
     })
   })
 
-  const json = await response.json()
+  const json = await readProviderJson(response, 'vision')
 
   if (!response.ok) {
     throw buildProviderError('vision', response.status, json, {
@@ -900,6 +918,23 @@ const extractJsonObjectText = (value: string) => {
   return cleaned
 }
 
+const parseStructuredJsonText = (value: string, provider: string) => {
+  const jsonText = extractJsonObjectText(value)
+
+  if (!jsonText.startsWith('{')) {
+    const bodyType = isLikelyHtml(jsonText) ? 'HTML' : 'non-JSON'
+    throw new Error(
+      `${provider} tidak mengembalikan JSON valid (${bodyType}). Cek token/auth provider atau respons fallback. body=${previewText(jsonText)}`
+    )
+  }
+
+  try {
+    return JSON.parse(jsonText)
+  } catch (error) {
+    throw new Error(`${provider} mengembalikan JSON tidak valid: ${getErrorMessage(error)} body=${previewText(jsonText)}`)
+  }
+}
+
 const extractPuterText = (response: unknown) => {
   if (typeof response === 'string') {
     return response.trim()
@@ -988,7 +1023,7 @@ const callGeminiStructuring = async (
     }
   )
 
-  const responseJson = await response.json()
+  const responseJson = await readProviderJson(response, 'gemini')
 
   if (!response.ok) {
     throw buildProviderError('gemini', response.status, responseJson, {
@@ -997,7 +1032,7 @@ const callGeminiStructuring = async (
   }
 
   const text = extractGeminiText(responseJson)
-  return normalizeStructuredResult(JSON.parse(text))
+  return normalizeStructuredResult(parseStructuredJsonText(text, 'Gemini'))
 }
 
 const callPuterOcr = async (imageBuffer: Buffer) => {
@@ -1046,7 +1081,7 @@ ${JSON.stringify(STRUCTURED_RESPONSE_SCHEMA)}
     throw new Error('Puter Gemini tidak mengembalikan konten')
   }
 
-  return normalizeStructuredResult(JSON.parse(extractJsonObjectText(text)))
+  return normalizeStructuredResult(parseStructuredJsonText(text, 'Puter Gemini'))
 }
 
 export async function POST(request: NextRequest) {

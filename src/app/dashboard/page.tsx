@@ -755,7 +755,17 @@ export default function DashboardPage() {
 
       setPhotoProgress(85)
 
-      const responseData = await response.json()
+      const responseText = await response.text()
+      let responseData: any = {}
+
+      try {
+        responseData = responseText ? JSON.parse(responseText) : {}
+      } catch (parseError) {
+        const responsePreview = responseText.replace(/\s+/g, ' ').trim().slice(0, 160)
+        throw new Error(
+          `Server OCR mengembalikan respons bukan JSON (HTTP ${response.status}). ${responsePreview || 'Respons kosong.'}`
+        )
+      }
 
       if (!response.ok) {
         throw new Error(responseData.message || 'Gagal memproses OCR')
