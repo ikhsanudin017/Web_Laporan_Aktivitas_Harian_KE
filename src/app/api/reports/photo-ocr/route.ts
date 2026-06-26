@@ -38,6 +38,8 @@ type StructuredPhotoResult = {
 }
 
 type SupportedUserRole = 'MAS_ANGGIT' | string
+type VisitCountField = 'angsuran' | 'fundingPersonal' | 'fundingB2B' | 'marketingPersonal' | 'marketingB2B'
+type VisitCounts = Record<VisitCountField, number>
 
 const DEFAULT_COUNTS: StructuredCounts = {
   survey: 0,
@@ -452,87 +454,204 @@ const cleanVisitTarget = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
-const splitVisitTargets = (activity: string) => {
-  const normalized = normalizeBusinessTerms(activity)
-    .replace(/<\s*b2b\s*>/gi, ' B2B ')
-    .replace(/\b(marketing|kunjungan)\b/gi, '|')
+const VISIT_KEYWORD_PATTERN = /\b(marketing|kunjungan)\b/i
+const VISIT_KEYWORD_SPLIT_PATTERN = /\b(?:marketing|kunjungan)\b/gi
+const NON_VISIT_CONTINUATION_PATTERNS = [
+  /\bangsuran\b/i,
+  /\btab\b/i,
+  /\btabungan\b/i,
+  /\bsimpanan\b/i,
+  /\bdeposito\b/i,
+  /\bfunding\b/i,
+  /\bsurvey\b/i,
+  /\bsurvei\b/i,
+  /\baqod\b/i,
+  /\bsholat\b/i,
+  /\bistirahat\b/i,
+  /\bevent\b/i,
+  /\bkantor\b/i
+]
+const NON_VISIT_SEGMENT_PATTERN =
+  /\b(?:angsuran|tab|tabungan|simpanan|deposito|funding|survey|survei|aqod|sholat|istirahat|event|kantor)\b.*$/i
 
-  return normalized
-    .split(/\n+/)
-    .flatMap((line) => line.split('|'))
-    .flatMap((segment) => segment.split(/\s*(?:,|;|\/|\+|&|\bdan\b)\s*/i))
+const createEmptyVisitCounts = (): VisitCounts => ({
+  angsuran: 0,
+  fundingPersonal: 0,
+  fundingB2B: 0,
+  marketingPersonal: 0,
+  marketingB2B: 0
+})
+
+const stripListPrefix = (value: string) => value.replace(/^-+\s*/, '').trim()
+
+const isCountableVisitTarget = (value: string) => {
+  if (!value || !/[a-zA-Z]/.test(value)) {
+    return false
+  }
+
+  if (/^\d{1,2}(?:\s*(?:orang|nasabah|target|x))?$/i.test(value)) {
+    return false
+  }
+
+  if (/^[alf]$/i.test(value)) {
+    return false
+  }
+
+  return true
+}
+
+const splitVisitTargetSegment = (segment: string) =>
+  segment
+    .replace(NON_VISIT_SEGMENT_PATTERN, ' ')
+    .replace(/<\s*b2b\s*>/gi, ' B2B ')
+    .split(/\s*(?:,|;|\bdan\b)\s*/i)
     .map(cleanVisitTarget)
-    .filter(Boolean)
+    .filter(isCountableVisitTarget)
+
+const splitVisitTargetsFromVisitLine = (line: string) => {
+  const normalized = normalizeBusinessTerms(stripListPrefix(line)).replace(/<\s*b2b\s*>/gi, ' B2B ')
+  const segments = normalized.split(VISIT_KEYWORD_SPLIT_PATTERN).slice(1)
+
+  return segments.flatMap(splitVisitTargetSegment)
+}
+
+const extractExplicitVisitCount = (line: string) => {
+  const match = normalizeBusinessTerms(line).match(
+    /\b(?:marketing|kunjungan)\b\s*[:=-]?\s*(\d{1,2})(?:\s*(?:orang|nasabah|target|x))?\s*$/i
+  )
+
+  if (!match) {
+    return null
+  }
+
+  const count = Number.parseInt(match[1], 10)
+  return Number.isFinite(count) && count > 0 && count <= 50 ? count : null
+}
+
+const getVisitMarkerField = (line: string) => {
+  const markerField = classifyFieldFromMarker(line)
+
+  if (markerField) {
+    return markerField
+  }
+
+  return /\bb2b\b/i.test(line) ? 'marketingB2B' : null
+}
+
+const isVisitContinuationLine = (line: string) => {
+  const normalized = normalizeBusinessTerms(stripListPrefix(line))
+
+  if (!normalized || NON_VISIT_CONTINUATION_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return false
+  }
+
+  return splitVisitTargetSegment(normalized).length > 0
+}
+
+const addVisitCount = (
+  counts: VisitCounts,
+  target: string,
+  markerField: VisitCountField | null,
+  amount = 1
+) => {
+  const isB2BTarget = hasBusinessContext(target) || /\bb2b\b/i.test(target)
+
+  if (markerField === 'angsuran') {
+    counts.angsuran += amount
+    return
+  }
+
+  if (markerField === 'fundingB2B' || (markerField === 'fundingPersonal' && isB2BTarget)) {
+    counts.fundingB2B += amount
+    return
+  }
+
+  if (markerField === 'fundingPersonal') {
+    counts.fundingPersonal += amount
+    return
+  }
+
+  if (isB2BTarget) {
+    counts.marketingB2B += amount
+    return
+  }
+
+  counts.marketingPersonal += amount
 }
 
 const countVisitTargetsFromActivity = (activity: string) => {
   const normalized = normalizeBusinessTerms(activity)
-  const markerField = classifyFieldFromMarker(normalized)
-  const isVisitLikeActivity = /\b(marketing|kunjungan)\b/i.test(normalized)
+  const isVisitLikeActivity = VISIT_KEYWORD_PATTERN.test(normalized)
+  const counts = createEmptyVisitCounts()
 
   if (!isVisitLikeActivity) {
-    return {
-      angsuran: 0,
-      fundingPersonal: 0,
-      fundingB2B: 0,
-      marketingPersonal: 0,
-      marketingB2B: 0
-    }
+    return counts
   }
 
-  const targets = splitVisitTargets(activity)
+  let activeVisitField: VisitCountField | null = null
 
-  if (targets.length === 0) {
-    return {
-      angsuran: 0,
-      fundingPersonal: 0,
-      fundingB2B: 0,
-      marketingPersonal: 0,
-      marketingB2B: 0
+  splitActivityLines(normalized).forEach((line) => {
+    if (VISIT_KEYWORD_PATTERN.test(line)) {
+      const markerField = getVisitMarkerField(line)
+      const explicitCount = extractExplicitVisitCount(line)
+      const targets = splitVisitTargetsFromVisitLine(line)
+
+      if (explicitCount) {
+        addVisitCount(counts, line, markerField, explicitCount)
+      }
+
+      targets.forEach((target) => addVisitCount(counts, target, markerField))
+      activeVisitField = !explicitCount && targets.length === 0 ? markerField || 'marketingPersonal' : null
+      return
     }
-  }
 
-  return targets.reduce(
-    (counts, target) => {
-      const isB2BTarget = hasBusinessContext(target) || /\bb2b\b/i.test(target)
-
-      if (markerField === 'angsuran') {
-        counts.angsuran += 1
-        return counts
-      }
-
-      if (markerField === 'fundingB2B' || (markerField === 'fundingPersonal' && isB2BTarget)) {
-        counts.fundingB2B += 1
-        return counts
-      }
-
-      if (markerField === 'fundingPersonal') {
-        counts.fundingPersonal += 1
-        return counts
-      }
-
-      if (isB2BTarget) {
-        counts.marketingB2B += 1
-        return counts
-      }
-
-      counts.marketingPersonal += 1
-      return counts
-    },
-    {
-      angsuran: 0,
-      fundingPersonal: 0,
-      fundingB2B: 0,
-      marketingPersonal: 0,
-      marketingB2B: 0
+    if (activeVisitField && isVisitContinuationLine(line)) {
+      splitVisitTargetSegment(line).forEach((target) => addVisitCount(counts, target, activeVisitField))
+      return
     }
-  )
+
+    activeVisitField = null
+  })
+
+  return counts
+}
+
+const countTimelineVisitTargets = (timeline: TimelineEntry[]) => {
+  return timeline.reduce((totalCounts, item) => {
+    const itemCounts = countVisitTargetsFromActivity(item.activity)
+
+    totalCounts.angsuran += itemCounts.angsuran
+    totalCounts.fundingPersonal += itemCounts.fundingPersonal
+    totalCounts.fundingB2B += itemCounts.fundingB2B
+    totalCounts.marketingPersonal += itemCounts.marketingPersonal
+    totalCounts.marketingB2B += itemCounts.marketingB2B
+
+    return totalCounts
+  }, createEmptyVisitCounts())
 }
 
 const applyStructuredRoleRules = (
   result: StructuredPhotoResult,
   userRole?: SupportedUserRole | null
 ): StructuredPhotoResult => {
+  if (userRole === 'MBAK_EKA') {
+    const visitCounts = countTimelineVisitTargets(result.timeline)
+    const hasVisitEvidence = visitCounts.marketingPersonal > 0 || visitCounts.marketingB2B > 0
+
+    if (!hasVisitEvidence) {
+      return result
+    }
+
+    return {
+      ...result,
+      counts: {
+        ...result.counts,
+        marketingPersonal: Math.min(result.counts.marketingPersonal, visitCounts.marketingPersonal),
+        marketingB2B: Math.min(result.counts.marketingB2B, visitCounts.marketingB2B)
+      }
+    }
+  }
+
   if (userRole !== 'MAS_ANGGIT') {
     return result
   }
@@ -541,10 +660,8 @@ const applyStructuredRoleRules = (
     return total + countAngsuranNamesFromActivity(item.activity)
   }, 0)
 
-  const visitAsAngsuranCount = result.timeline.reduce((total, item) => {
-    const visitCounts = countVisitTargetsFromActivity(item.activity)
-    return total + visitCounts.marketingPersonal + visitCounts.marketingB2B
-  }, 0)
+  const visitCounts = countTimelineVisitTargets(result.timeline)
+  const visitAsAngsuranCount = visitCounts.marketingPersonal + visitCounts.marketingB2B
 
   return {
     ...result,
@@ -805,7 +922,9 @@ Aturan penting:
 - Contoh: "Kunjungan Joko Saptono, Puji, Warung Mak'e, Warung Pojok L" berarti 4 kunjungan:
   - 2 marketing personal: Joko Saptono, Puji
   - 2 marketing B2B: Warung Mak'e, Warung Pojok
+- Jangan jadikan "/", "+", atau "&" sebagai pemisah target kunjungan otomatis; tanda itu sering menjadi catatan atau pasangan nama dalam satu kunjungan.
 - Jika ada target kunjungan yang bertuliskan "<B2B>", hitung sebagai B2B.
+- Jika satu blok waktu berisi campuran "kunjungan", "tabungan/funding", dan "angsuran", hitung hanya baris yang punya kata "kunjungan/marketing" sebagai marketing. Baris tabungan/funding tetap funding, baris angsuran tetap angsuran.
 - "Berangkat Survey" dan "Sampai tempat survey ..." masuk timeline, tetapi TIDAK menambah hitungan survey.
 - Hitung survey hanya jika barisnya adalah kegiatan survey yang benar-benar dilakukan, misalnya "Survey Ruswanti".
 - Hitung angsuran bila ada aktivitas "ambil/setor/tagih angsuran", termasuk jika muncul di dalam bullet list pada satu blok waktu.
@@ -824,7 +943,9 @@ Aturan berdasarkan role user:
 ${
   userRole === 'MAS_ANGGIT'
     ? '- Khusus user MAS_ANGGIT, aktivitas "kunjungan" lebih mengarah ke angsuran. Hitung setiap target kunjungan sebagai angsuran, bukan marketing.'
-    : '- Untuk role selain MAS_ANGGIT, gunakan aturan umum di atas.'
+    : userRole === 'MBAK_EKA'
+      ? '- Khusus user MBAK_EKA, baca "kunjungan" secara konservatif: satu baris "Kunjungan <nama/catatan>" dihitung 1, jangan pecah catatan slash/kurung/angka menjadi kunjungan baru, dan jangan tarik baris Tab/Funding/Angsuran di blok yang sama menjadi marketing.'
+      : '- Untuk role selain MAS_ANGGIT, gunakan aturan umum di atas.'
 }
 `.trim()
 
