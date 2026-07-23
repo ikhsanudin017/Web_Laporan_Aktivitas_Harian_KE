@@ -23,6 +23,7 @@ export default function LoginPage() {
     { id: 7, name: 'Bapak Prasetyo Dani', email: 'prasetyo@ksuke.com', role: 'BAPAK_PRASETYO' },
     { id: 8, name: 'Bapak Diah Supriyanto', email: 'diah@ksuke.com', role: 'BAPAK_DIAH' },
     { id: 9, name: 'Mbak Eka', email: 'eka@ksuke.com', role: 'MBAK_EKA' },
+    { id: 10, name: 'Mas Saiful', email: 'saiful@ksuke.com', role: 'MAS_SAIFUL' },
   ]
 
   const handleUserSelect = async () => {

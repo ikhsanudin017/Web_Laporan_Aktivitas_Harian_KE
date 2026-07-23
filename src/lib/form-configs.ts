@@ -55,6 +55,20 @@ export const FORM_CONFIGS: Record<string, FormConfig> = {
     ])
   },
 
+  MAS_SAIFUL: {
+    role: 'MAS_SAIFUL' as any,
+    title: 'Form Laporan Harian - Mas Saiful',
+    fields: withTimelineField([
+      {
+        name: 'aktivitasHarian',
+        label: 'Aktivitas Harian',
+        type: 'textarea',
+        required: true,
+        placeholder: 'Masukkan aktivitas harian Anda...'
+      }
+    ])
+  },
+
   BAPAK_SAYUDI: {
     role: 'BAPAK_SAYUDI' as any,
     title: 'Form Laporan Harian - Bapak Sayudi',

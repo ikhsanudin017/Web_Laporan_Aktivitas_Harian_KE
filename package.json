@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "clean:next": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true })\"",
-    "predev": "npm run clean:next",
+    "clean:next-dev": "node -e \"require('fs').rmSync('.next-dev', { recursive: true, force: true })\"",
+    "predev": "npm run clean:next-dev",
     "prebuild": "npm run clean:next",
     "dev": "next dev -p 3002",
     "build": "prisma generate && next build",
