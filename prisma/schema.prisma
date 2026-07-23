@@ -78,6 +78,7 @@ enum UserRole {
   ADMIN
   USTADZ_YULI          // Simple form: No, Tanggal, Aktivitas Harian
   BAPAK_TOHA           // Simple form: No, Tanggal, Aktivitas Harian
+  MAS_SAIFUL           // Simple form: sama dengan Bapak Toha
   BAPAK_SAYUDI         // Medium: No, Tanggal, Angsuran, Kegiatan, Funding (B2B/Personal), Survey, Keterangan
   MAS_ANGGIT           // Medium: No, Tanggal, Angsuran, empty, Kegiatan, Survey, Keterangan
   BAPAK_ARWAN          // High: No, Tanggal, Funding (B2B/Personal), Marketing (B2B/Personal), Kegiatan, Angsuran, Survey, Keterangan

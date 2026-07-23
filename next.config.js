@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Keep development and production artifacts separate so running a build
+  // cannot invalidate modules used by an active development server.
+  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   serverExternalPackages: ['@prisma/client', 'bcryptjs', 'pg', 'sharp', 'google-auth-library', '@heyputer/puter.js'],
   images: {
     domains: ['localhost'],

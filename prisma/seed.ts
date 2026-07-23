@@ -64,6 +64,12 @@ async function main() {
       role: 'BAPAK_TOHA' as const
     },
     {
+      email: 'saiful@ksuke.com',
+      name: 'Mas Saiful',
+      password: hashedPassword,
+      role: 'MAS_SAIFUL' as const
+    },
+    {
       email: 'sayudi@ksuke.com',
       name: 'Bapak Sayudi',
       password: hashedPassword,

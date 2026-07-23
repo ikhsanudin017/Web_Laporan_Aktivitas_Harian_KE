@@ -10,7 +10,8 @@ export const MOCK_USER_EMAILS = [
   'yuli@ksuke.com',
   'prasetyo@ksuke.com',
   'diah@ksuke.com',
-  'eka@ksuke.com'
+  'eka@ksuke.com',
+  'saiful@ksuke.com'
 ] as const
 
 export const getMockUserEmail = (token: string): string | null => {
